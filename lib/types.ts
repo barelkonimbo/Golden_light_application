@@ -9,18 +9,18 @@ export interface Attribute {
   values: AttributeValue[];
 }
 
-export interface ShipmentType {
+/** Shared shape for the small named lookup lists (shipment types, categories, channels, ...). */
+export interface NamedEntity {
   id: string;
   name: string;
 }
 
-export type InventoryStatus = "in_stock" | "out_of_stock" | "backorder";
-
-export const INVENTORY_STATUS_LABELS: Record<InventoryStatus, string> = {
-  in_stock: "קיים במלאי",
-  out_of_stock: "אזל מהמלאי",
-  backorder: "בהזמנה מראש",
-};
+export type ShipmentType = NamedEntity;
+export type ProductCategory = NamedEntity;
+export type ProductCollection = NamedEntity;
+export type ProductTypeOption = NamedEntity;
+export type ShippingProfile = NamedEntity;
+export type SalesChannel = NamedEntity;
 
 export type ProductType = "simple" | "variant";
 
@@ -33,7 +33,7 @@ export interface Dimensions {
 
 export interface SimpleAttributeSelection {
   attributeId: string;
-  valueId: string | null;
+  valueIds: string[];
 }
 
 export interface VariantAttributeSelection {
@@ -42,14 +42,22 @@ export interface VariantAttributeSelection {
   meantForVariants: boolean;
 }
 
+export interface ChannelPrice {
+  channelId: string;
+  price: string;
+  discountPrice: string;
+}
+
 export interface VariantRow {
   id: string;
   sku: string;
+  /** attributeId -> valueId. An attribute flagged for variants may still be unset until chosen. */
   optionValues: Record<string, string>;
   isActive: boolean;
   price: string;
   discountPrice: string;
-  inventoryStatus: InventoryStatus;
+  stockQuantity: string;
+  channelPrices: ChannelPrice[];
   expanded: boolean;
 }
 
@@ -57,9 +65,11 @@ export interface SimpleProductData extends Dimensions {
   price: string;
   discountPrice: string;
   sku: string;
-  inventoryStatus: InventoryStatus;
+  isActive: boolean;
+  stockQuantity: string;
   shipmentTypeId: string | null;
   attributes: SimpleAttributeSelection[];
+  channelPrices: ChannelPrice[];
 }
 
 export interface VariantProductData extends Dimensions {
@@ -69,18 +79,28 @@ export interface VariantProductData extends Dimensions {
   variants: VariantRow[];
 }
 
+export interface ProductOrganization {
+  discountable: boolean;
+  typeId: string | null;
+  collectionId: string | null;
+  categoryIds: string[];
+  tags: string[];
+  shippingProfileId: string | null;
+  salesChannelIds: string[];
+}
+
 export interface ProductDraft {
   name: string;
   description: string;
   productType: ProductType;
   simple: SimpleProductData;
   variant: VariantProductData;
+  organization: ProductOrganization;
 }
 
 /** A saved product: the draft's content plus identity/list-view metadata. */
 export interface Product extends ProductDraft {
   id: string;
-  categories: string[];
   createdAt: string;
 }
 

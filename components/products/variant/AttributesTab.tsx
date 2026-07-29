@@ -23,6 +23,7 @@ export function VariantAttributesTab() {
   const addVariantAttribute = useStore((state) => state.addVariantAttribute);
   const removeVariantAttribute = useStore((state) => state.removeVariantAttribute);
   const toggleVariantAttributeValue = useStore((state) => state.toggleVariantAttributeValue);
+  const removeAttributeValue = useStore((state) => state.removeAttributeValue);
   const setVariantAttributeMeantForVariants = useStore(
     (state) => state.setVariantAttributeMeantForVariants
   );
@@ -103,11 +104,14 @@ export function VariantAttributesTab() {
                         values={attribute.values}
                         selectedValueIds={selection.selectedValueIds}
                         onToggle={(valueId) => toggleVariantAttributeValue(attribute.id, valueId)}
+                        onDeleteValue={(valueId) => removeAttributeValue(attribute.id, valueId)}
                       />
                       <AddValueDialog
                         attributeId={attribute.id}
-                        onCreated={(valueId) =>
-                          toggleVariantAttributeValue(attribute.id, valueId)
+                        onCreated={(valueIds) =>
+                          valueIds.forEach((valueId) =>
+                            toggleVariantAttributeValue(attribute.id, valueId)
+                          )
                         }
                       />
                     </div>

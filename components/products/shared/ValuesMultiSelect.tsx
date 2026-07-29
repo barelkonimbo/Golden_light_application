@@ -6,16 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AttributeValue } from "@/lib/types";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Trash2, X } from "lucide-react";
 
 export function ValuesMultiSelect({
   values,
   selectedValueIds,
   onToggle,
+  onDeleteValue,
 }: {
   values: AttributeValue[];
   selectedValueIds: string[];
   onToggle: (valueId: string) => void;
+  /** When provided, shows a delete affordance that removes the value from the attribute entirely. */
+  onDeleteValue?: (valueId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -39,7 +42,20 @@ export function ValuesMultiSelect({
                     data-checked={selectedValueIds.includes(value.id)}
                     onSelect={() => onToggle(value.id)}
                   >
-                    {value.value}
+                    <span className="flex-1">{value.value}</span>
+                    {onDeleteValue && (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDeleteValue(value.id);
+                        }}
+                        aria-label={`מחיקת ערך ${value.value}`}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
                   </CommandItem>
                 ))}
               </CommandGroup>

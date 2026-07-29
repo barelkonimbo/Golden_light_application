@@ -21,17 +21,21 @@ export function AddValueDialog({
   onCreated,
 }: {
   attributeId: string;
-  /** Called after the value is added to the attribute's shared value pool. Does not select it. */
-  onCreated?: (valueId: string) => void;
+  /** Called after the value(s) are added to the attribute's shared value pool. Does not select them. */
+  onCreated?: (valueIds: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const addAttributeValue = useStore((state) => state.addAttributeValue);
 
   function handleSave() {
-    if (!value.trim()) return;
-    const valueId = addAttributeValue(attributeId, value.trim());
-    onCreated?.(valueId);
+    const values = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (values.length === 0) return;
+    const valueIds = values.map((item) => addAttributeValue(attributeId, item));
+    onCreated?.(valueIds);
     setValue("");
     setOpen(false);
   }
@@ -49,11 +53,12 @@ export function AddValueDialog({
           <DialogTitle>הוספת ערך חדש</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="new-value">ערך</Label>
+          <Label htmlFor="new-value">ערך (ניתן להוסיף כמה ערכים, מופרדים בפסיק)</Label>
           <Input
             id="new-value"
             value={value}
             onChange={(event) => setValue(event.target.value)}
+            placeholder='למשל: "אדום, כחול, ירוק"'
             onKeyDown={(event) => {
               if (event.key === "Enter") handleSave();
             }}

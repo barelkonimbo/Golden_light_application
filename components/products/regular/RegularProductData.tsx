@@ -1,11 +1,12 @@
 "use client";
 
+import { OrganizationTab } from "@/components/products/shared/OrganizationTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RegularAttributesTab } from "./AttributesTab";
 import { RegularGeneralTab } from "./GeneralTab";
 import { RegularInventoryTab } from "./InventoryTab";
 import { RegularShippingTab } from "./ShippingTab";
-import { LayoutGrid, Tags, Truck, Wrench } from "lucide-react";
+import { Building2, LayoutGrid, Tags, Truck, Wrench } from "lucide-react";
 
 export function RegularProductData() {
   return (
@@ -18,6 +19,10 @@ export function RegularProductData() {
         <TabsTrigger value="inventory">
           <Tags />
           מלאי
+        </TabsTrigger>
+        <TabsTrigger value="organization">
+          <Building2 />
+          ארגון
         </TabsTrigger>
         <TabsTrigger value="shipping">
           <Truck />
@@ -33,6 +38,9 @@ export function RegularProductData() {
       </TabsContent>
       <TabsContent value="inventory" className="ps-6">
         <RegularInventoryTab />
+      </TabsContent>
+      <TabsContent value="organization" className="ps-6">
+        <OrganizationTab />
       </TabsContent>
       <TabsContent value="shipping" className="ps-6">
         <RegularShippingTab />

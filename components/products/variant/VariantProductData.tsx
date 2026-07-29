@@ -1,11 +1,12 @@
 "use client";
 
+import { OrganizationTab } from "@/components/products/shared/OrganizationTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VariantAttributesTab } from "./AttributesTab";
 import { VariantInventoryTab } from "./InventoryTab";
 import { VariantShippingTab } from "./ShippingTab";
 import { VariantsTab } from "./VariantsTab";
-import { LayoutGrid, Rows3, Tags, Truck } from "lucide-react";
+import { Building2, LayoutGrid, Rows3, Tags, Truck } from "lucide-react";
 
 export function VariantProductData() {
   return (
@@ -14,6 +15,10 @@ export function VariantProductData() {
         <TabsTrigger value="inventory">
           <Tags />
           מלאי
+        </TabsTrigger>
+        <TabsTrigger value="organization">
+          <Building2 />
+          ארגון
         </TabsTrigger>
         <TabsTrigger value="shipping">
           <Truck />
@@ -30,6 +35,9 @@ export function VariantProductData() {
       </TabsList>
       <TabsContent value="inventory" className="ps-6">
         <VariantInventoryTab />
+      </TabsContent>
+      <TabsContent value="organization" className="ps-6">
+        <OrganizationTab />
       </TabsContent>
       <TabsContent value="shipping" className="ps-6">
         <VariantShippingTab />
