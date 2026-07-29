@@ -41,7 +41,12 @@ export function RegularAttributesTab() {
             ))}
           </SelectContent>
         </Select>
-        <AddAttributeDialog onCreated={(attributeId) => addSimpleAttribute(attributeId)} />
+        <AddAttributeDialog
+          onCreated={(attributeId, valueIds) => {
+            addSimpleAttribute(attributeId);
+            valueIds.forEach((valueId) => toggleSimpleAttributeValue(attributeId, valueId));
+          }}
+        />
       </div>
 
       {selections.length === 0 ? (

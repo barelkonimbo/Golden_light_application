@@ -4,10 +4,12 @@ import {
   Product,
   ProductCategory,
   ProductCollection,
+  ProductTag,
   ProductTypeOption,
   SalesChannel,
   ShipmentType,
   ShippingProfile,
+  Warehouse,
 } from "./types";
 
 export const initialAttributes: Attribute[] = [
@@ -84,6 +86,19 @@ export const initialSalesChannels: SalesChannel[] = [
   { id: "channel-website", name: "אתר האינטרנט" },
 ];
 
+export const initialTags: ProductTag[] = [
+  { id: "tag-sale", name: "מבצע" },
+  { id: "tag-new", name: "חדש" },
+  { id: "tag-recommended", name: "מומלץ" },
+  { id: "tag-eco", name: "אקולוגי" },
+];
+
+export const initialWarehouses: Warehouse[] = [
+  { id: "wh-main", name: "מחסן ראשי" },
+  { id: "wh-north", name: "מחסן צפון" },
+  { id: "wh-south", name: "מחסן דרום" },
+];
+
 export const initialProducts: Product[] = [
   {
     ...createInitialDraft(),
@@ -95,6 +110,7 @@ export const initialProducts: Product[] = [
       ...createInitialDraft().simple,
       sku: "30347",
       price: "142",
+      status: "published",
     },
     organization: {
       ...createInitialDraft().organization,
@@ -120,10 +136,12 @@ export const initialProducts: Product[] = [
           id: "variant-1",
           sku: "30421WW-12",
           optionValues: { "attr-power": "val-power-12" },
-          isActive: true,
+          status: "published",
           price: "189",
-          discountPrice: "",
           stockQuantity: "24",
+          managedInventory: true,
+          allowBackorder: false,
+          imageUrl: null,
           channelPrices: [],
           expanded: false,
         },
@@ -131,10 +149,12 @@ export const initialProducts: Product[] = [
           id: "variant-2",
           sku: "30421WW-15",
           optionValues: { "attr-power": "val-power-15" },
-          isActive: true,
+          status: "published",
           price: "219",
-          discountPrice: "",
           stockQuantity: "10",
+          managedInventory: true,
+          allowBackorder: false,
+          imageUrl: null,
           channelPrices: [],
           expanded: false,
         },
@@ -151,7 +171,7 @@ export const initialProducts: Product[] = [
     id: "prod-3",
     name: "ארמטורה קיר — פרטי",
     createdAt: "2026-07-21",
-    simple: { ...createInitialDraft().simple, sku: "65010002" },
+    simple: { ...createInitialDraft().simple, sku: "65010002", status: "published" },
     organization: {
       ...createInitialDraft().organization,
       categoryIds: ["cat-pendant", "cat-indoor"],
@@ -174,7 +194,7 @@ export const initialProducts: Product[] = [
     id: "prod-5",
     name: "SYSTEM 15/8",
     createdAt: "2026-07-12",
-    simple: { ...createInitialDraft().simple, sku: "30803" },
+    simple: { ...createInitialDraft().simple, sku: "30803", status: "published" },
     organization: {
       ...createInitialDraft().organization,
       categoryIds: ["cat-recessed", "cat-technical", "cat-indoor"],

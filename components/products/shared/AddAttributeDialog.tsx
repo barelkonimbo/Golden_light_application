@@ -19,7 +19,7 @@ import { Plus } from "lucide-react";
 export function AddAttributeDialog({
   onCreated,
 }: {
-  onCreated: (attributeId: string) => void;
+  onCreated: (attributeId: string, valueIds: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -27,9 +27,13 @@ export function AddAttributeDialog({
   const addAttribute = useStore((state) => state.addAttribute);
 
   function handleSave() {
-    if (!name.trim() || !value.trim()) return;
-    const { attributeId } = addAttribute(name.trim(), value.trim());
-    onCreated(attributeId);
+    const values = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (!name.trim() || values.length === 0) return;
+    const { attributeId, valueIds } = addAttribute(name.trim(), values);
+    onCreated(attributeId, valueIds);
     setName("");
     setValue("");
     setOpen(false);
@@ -58,12 +62,12 @@ export function AddAttributeDialog({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="new-attr-value">ערך</Label>
+            <Label htmlFor="new-attr-value">ערך (ניתן להוסיף כמה ערכים, מופרדים בפסיק)</Label>
             <Input
               id="new-attr-value"
               value={value}
               onChange={(event) => setValue(event.target.value)}
-              placeholder='למשל: "אדום"'
+              placeholder='למשל: "אדום, כחול, ירוק"'
             />
           </div>
         </div>

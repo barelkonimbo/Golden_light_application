@@ -1,6 +1,7 @@
 "use client";
 
 import { ProductDataSection } from "@/components/products/ProductDataSection";
+import { ImageUploadField } from "@/components/products/shared/ImageUploadField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,8 +13,10 @@ import { ArrowRight } from "lucide-react";
 export function ProductCreateView() {
   const name = useStore((state) => state.draft.name);
   const description = useStore((state) => state.draft.description);
+  const imageUrl = useStore((state) => state.draft.imageUrl);
   const setName = useStore((state) => state.setName);
   const setDescription = useStore((state) => state.setDescription);
+  const setProductImage = useStore((state) => state.setProductImage);
   const setView = useStore((state) => state.setView);
   const saveDraft = useStore((state) => state.saveDraft);
   const editingProductId = useStore((state) => state.editingProductId);
@@ -44,6 +47,11 @@ export function ProductCreateView() {
       <Card>
         <CardContent className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
+            <Label>תמונת מוצר</Label>
+            <ImageUploadField value={imageUrl} onChange={setProductImage} />
+          </div>
+
+          <div className="flex flex-col gap-2">
             <Label htmlFor="product-name">שם המוצר</Label>
             <Input
               id="product-name"
@@ -70,17 +78,6 @@ export function ProductCreateView() {
         </CardHeader>
         <CardContent>
           <ProductDataSection />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>מאפייני מוצר</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-            בקרוב
-          </div>
         </CardContent>
       </Card>
     </div>

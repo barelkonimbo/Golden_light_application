@@ -21,8 +21,19 @@ export type ProductCollection = NamedEntity;
 export type ProductTypeOption = NamedEntity;
 export type ShippingProfile = NamedEntity;
 export type SalesChannel = NamedEntity;
+export type ProductTag = NamedEntity;
+export type Warehouse = NamedEntity;
 
 export type ProductType = "simple" | "variant";
+
+export type PublicationStatus = "draft" | "published" | "proposed" | "rejected";
+
+export const PUBLICATION_STATUS_LABELS: Record<PublicationStatus, string> = {
+  draft: "טיוטה",
+  published: "פורסם",
+  proposed: "מוצע",
+  rejected: "נדחה",
+};
 
 export interface Dimensions {
   weight: string;
@@ -45,28 +56,36 @@ export interface VariantAttributeSelection {
 export interface ChannelPrice {
   channelId: string;
   price: string;
-  discountPrice: string;
 }
 
-export interface VariantRow {
+/** Stock-handling fields that live on whichever level actually gets sold: the
+ *  product itself for a regular product, or each variant row for a product
+ *  with variants. */
+export interface StockHandling {
+  managedInventory: boolean;
+  allowBackorder: boolean;
+}
+
+export interface VariantRow extends StockHandling {
   id: string;
   sku: string;
   /** attributeId -> valueId. An attribute flagged for variants may still be unset until chosen. */
   optionValues: Record<string, string>;
-  isActive: boolean;
+  status: PublicationStatus;
   price: string;
-  discountPrice: string;
   stockQuantity: string;
   channelPrices: ChannelPrice[];
+  imageUrl: string | null;
   expanded: boolean;
 }
 
-export interface SimpleProductData extends Dimensions {
+export interface SimpleProductData extends Dimensions, StockHandling {
   price: string;
-  discountPrice: string;
   sku: string;
-  isActive: boolean;
+  status: PublicationStatus;
   stockQuantity: string;
+  packageAmount: string;
+  warehouseId: string | null;
   shipmentTypeId: string | null;
   attributes: SimpleAttributeSelection[];
   channelPrices: ChannelPrice[];
@@ -74,6 +93,8 @@ export interface SimpleProductData extends Dimensions {
 
 export interface VariantProductData extends Dimensions {
   sku: string;
+  packageAmount: string;
+  warehouseId: string | null;
   shipmentTypeId: string | null;
   attributes: VariantAttributeSelection[];
   variants: VariantRow[];
@@ -84,7 +105,7 @@ export interface ProductOrganization {
   typeId: string | null;
   collectionId: string | null;
   categoryIds: string[];
-  tags: string[];
+  tagIds: string[];
   shippingProfileId: string | null;
   salesChannelIds: string[];
 }
@@ -92,6 +113,7 @@ export interface ProductOrganization {
 export interface ProductDraft {
   name: string;
   description: string;
+  imageUrl: string | null;
   productType: ProductType;
   simple: SimpleProductData;
   variant: VariantProductData;
@@ -119,4 +141,9 @@ export function productPriceLabel(product: ProductDraft): string {
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   return min === max ? `₪${min}` : `₪${min} – ₪${max}`;
+}
+
+export function productStatus(product: ProductDraft): PublicationStatus {
+  if (product.productType === "simple") return product.simple.status;
+  return product.variant.variants[0]?.status ?? "draft";
 }

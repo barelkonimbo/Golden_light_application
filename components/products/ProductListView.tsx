@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -24,16 +31,51 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useStore } from "@/lib/store";
-import { productPriceLabel, productSku } from "@/lib/types";
-import { Plus, Search, Trash2 } from "lucide-react";
+import {
+  PUBLICATION_STATUS_LABELS,
+  Product,
+  productPriceLabel,
+  productSku,
+  productStatus,
+} from "@/lib/types";
+import { ImageIcon, Plus, Search, Trash2 } from "lucide-react";
+
+const ALL = "__all__";
+
+type SortOption =
+  | "date-desc"
+  | "date-asc"
+  | "name-asc"
+  | "name-desc"
+  | "price-asc"
+  | "price-desc";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  "date-desc": "תאריך יצירה (חדש לישן)",
+  "date-asc": "תאריך יצירה (ישן לחדש)",
+  "name-asc": "שם (א-ת)",
+  "name-desc": "שם (ת-א)",
+  "price-asc": "מחיר (מהנמוך לגבוה)",
+  "price-desc": "מחיר (מהגבוה לנמוך)",
+};
+
+function sortPrice(product: Product): number {
+  if (product.productType === "simple") return Number(product.simple.price) || 0;
+  const prices = product.variant.variants.map((variant) => Number(variant.price) || 0);
+  return prices.length > 0 ? Math.min(...prices) : 0;
+}
 
 export function ProductListView() {
   const products = useStore((state) => state.products);
   const categories = useStore((state) => state.categories);
+  const tags = useStore((state) => state.tags);
   const startCreateProduct = useStore((state) => state.startCreateProduct);
   const startEditProduct = useStore((state) => state.startEditProduct);
   const deleteProduct = useStore((state) => state.deleteProduct);
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(ALL);
+  const [statusFilter, setStatusFilter] = useState(ALL);
+  const [sortBy, setSortBy] = useState<SortOption>("date-desc");
 
   function categoryNames(categoryIds: string[]) {
     return categoryIds
@@ -41,16 +83,29 @@ export function ProductListView() {
       .filter((name): name is string => Boolean(name));
   }
 
-  const filteredProducts = useMemo(() => {
+  function tagNames(tagIds: string[]) {
+    return tagIds
+      .map((id) => tags.find((tag) => tag.id === id)?.name)
+      .filter((name): name is string => Boolean(name));
+  }
+
+  const visibleProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return products;
-    return products.filter((product) => {
+
+    const filtered = products.filter((product) => {
+      if (categoryFilter !== ALL && !product.organization.categoryIds.includes(categoryFilter)) {
+        return false;
+      }
+      if (statusFilter !== ALL && productStatus(product) !== statusFilter) {
+        return false;
+      }
+      if (!normalized) return true;
       const haystack = [
         product.name,
         product.description,
         productSku(product),
         ...categoryNames(product.organization.categoryIds),
-        ...product.organization.tags,
+        ...tagNames(product.organization.tagIds),
         ...(product.productType === "variant"
           ? product.variant.variants.map((variant) => variant.sku)
           : []),
@@ -59,8 +114,29 @@ export function ProductListView() {
         .toLowerCase();
       return haystack.includes(normalized);
     });
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case "date-asc":
+          return a.createdAt.localeCompare(b.createdAt);
+        case "date-desc":
+          return b.createdAt.localeCompare(a.createdAt);
+        case "name-asc":
+          return a.name.localeCompare(b.name, "he");
+        case "name-desc":
+          return b.name.localeCompare(a.name, "he");
+        case "price-asc":
+          return sortPrice(a) - sortPrice(b);
+        case "price-desc":
+          return sortPrice(b) - sortPrice(a);
+        default:
+          return 0;
+      }
+    });
+    return sorted;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, query, categories]);
+  }, [products, query, categories, tags, categoryFilter, statusFilter, sortBy]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-8">
@@ -68,7 +144,7 @@ export function ProductListView() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">מוצרים</h1>
           <p className="text-muted-foreground text-sm">
-            {filteredProducts.length} מתוך {products.length} מוצרים בקטלוג
+            {visibleProducts.length} מתוך {products.length} מוצרים בקטלוג
           </p>
         </div>
         <Button onClick={startCreateProduct}>
@@ -87,11 +163,55 @@ export function ProductListView() {
         />
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>כל הקטגוריות</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>כל הסטטוסים</SelectItem>
+            {Object.entries(PUBLICATION_STATUS_LABELS).map(([status, label]) => (
+              <SelectItem key={status} value={status}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+          <SelectTrigger className="w-56 sm:ms-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(SORT_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Card className="p-0">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="h-11 ps-6">שם</TableHead>
+              <TableHead className="h-11 w-16 ps-6" />
+              <TableHead>שם</TableHead>
               <TableHead>מק&quot;ט</TableHead>
               <TableHead>מחיר</TableHead>
               <TableHead>קטגוריות</TableHead>
@@ -100,9 +220,23 @@ export function ProductListView() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.map((product) => (
+            {visibleProducts.map((product) => (
               <TableRow key={product.id}>
-                <TableCell className="ps-6 font-medium">
+                <TableCell className="ps-6">
+                  <div className="bg-muted flex size-10 items-center justify-center overflow-hidden rounded-md border">
+                    {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.imageUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="text-muted-foreground size-4" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">
                   <button
                     type="button"
                     onClick={() => startEditProduct(product.id)}

@@ -58,8 +58,9 @@ export function VariantAttributesTab() {
           </SelectContent>
         </Select>
         <AddAttributeDialog
-          onCreated={(attributeId) => {
+          onCreated={(attributeId, valueIds) => {
             addVariantAttribute(attributeId);
+            valueIds.forEach((valueId) => toggleVariantAttributeValue(attributeId, valueId));
             setExpanded((current) => new Set(current).add(attributeId));
           }}
         />

@@ -10,24 +10,29 @@ import {
   initialSalesChannels,
   initialShipmentTypes,
   initialShippingProfiles,
+  initialTags,
+  initialWarehouses,
 } from "./mock-data";
 import {
   Attribute,
+  ChannelPrice,
   Dimensions,
   Product,
   ProductCategory,
   ProductCollection,
   ProductDraft,
+  ProductTag,
   ProductType,
   ProductTypeOption,
+  PublicationStatus,
   SalesChannel,
   ShipmentType,
   ShippingProfile,
   VariantRow,
+  Warehouse,
 } from "./types";
 
 type View = "list" | "create";
-type ChannelPriceField = "price" | "discountPrice";
 
 interface StoreState {
   view: View;
@@ -38,6 +43,8 @@ interface StoreState {
   productTypes: ProductTypeOption[];
   shippingProfiles: ShippingProfile[];
   salesChannels: SalesChannel[];
+  tags: ProductTag[];
+  warehouses: Warehouse[];
   products: Product[];
   draft: ProductDraft;
   editingProductId: string | null;
@@ -47,26 +54,32 @@ interface StoreState {
   startEditProduct: (productId: string) => void;
   deleteProduct: (productId: string) => void;
 
-  addAttribute: (name: string, initialValue: string) => { attributeId: string; valueId: string };
+  addAttribute: (name: string, initialValues: string[]) => { attributeId: string; valueIds: string[] };
   addAttributeValue: (attributeId: string, value: string) => string;
   removeAttributeValue: (attributeId: string, valueId: string) => void;
 
   setName: (name: string) => void;
   setDescription: (description: string) => void;
+  setProductImage: (imageUrl: string | null) => void;
   setProductType: (productType: ProductType) => void;
 
-  setSimpleField: (field: "price" | "discountPrice" | "sku" | "stockQuantity", value: string) => void;
-  setSimpleActive: (isActive: boolean) => void;
+  setSimpleField: (field: "price" | "sku" | "stockQuantity" | "packageAmount", value: string) => void;
+  setSimpleStatus: (status: PublicationStatus) => void;
   setSimpleDimension: (field: keyof Dimensions, value: string) => void;
   setSimpleShipmentType: (shipmentTypeId: string | null) => void;
+  setSimpleWarehouse: (warehouseId: string | null) => void;
+  setSimpleManagedInventory: (managedInventory: boolean) => void;
+  setSimpleAllowBackorder: (allowBackorder: boolean) => void;
   addSimpleAttribute: (attributeId: string) => void;
   removeSimpleAttribute: (attributeId: string) => void;
   toggleSimpleAttributeValue: (attributeId: string, valueId: string) => void;
-  setSimpleChannelPrice: (channelId: string, field: ChannelPriceField, value: string) => void;
+  setSimpleChannelPrice: (channelId: string, price: string) => void;
 
   setVariantSku: (sku: string) => void;
+  setVariantPackageAmount: (packageAmount: string) => void;
   setVariantDimension: (field: keyof Dimensions, value: string) => void;
   setVariantShipmentType: (shipmentTypeId: string | null) => void;
+  setVariantWarehouse: (warehouseId: string | null) => void;
   addVariantAttribute: (attributeId: string) => void;
   removeVariantAttribute: (attributeId: string) => void;
   toggleVariantAttributeValue: (attributeId: string, valueId: string) => void;
@@ -77,32 +90,23 @@ interface StoreState {
   toggleVariantRowExpanded: (id: string) => void;
   updateVariantRow: (id: string, changes: Partial<VariantRow>) => void;
   setVariantRowOption: (rowId: string, attributeId: string, valueId: string | null) => void;
-  setVariantRowChannelPrice: (rowId: string, channelId: string, field: ChannelPriceField, value: string) => void;
+  setVariantRowChannelPrice: (rowId: string, channelId: string, price: string) => void;
 
   setDiscountable: (discountable: boolean) => void;
   setOrganizationTypeId: (typeId: string | null) => void;
   setOrganizationCollectionId: (collectionId: string | null) => void;
   toggleOrganizationCategory: (categoryId: string) => void;
-  addOrganizationTag: (tag: string) => void;
-  removeOrganizationTag: (tag: string) => void;
+  toggleOrganizationTag: (tagId: string) => void;
   setOrganizationShippingProfileId: (shippingProfileId: string | null) => void;
   toggleSalesChannel: (channelId: string) => void;
 
   saveDraft: () => void;
 }
 
-function upsertChannelPrice(
-  list: { channelId: string; price: string; discountPrice: string }[],
-  channelId: string,
-  field: ChannelPriceField,
-  value: string
-) {
+function upsertChannelPrice(list: ChannelPrice[], channelId: string, price: string) {
   const entry = list.find((item) => item.channelId === channelId);
-  if (entry) {
-    entry[field] = value;
-  } else {
-    list.push({ channelId, price: "", discountPrice: "", [field]: value });
-  }
+  if (entry) entry.price = price;
+  else list.push({ channelId, price });
 }
 
 export const useStore = create<StoreState>()(
@@ -115,6 +119,8 @@ export const useStore = create<StoreState>()(
     productTypes: initialProductTypes,
     shippingProfiles: initialShippingProfiles,
     salesChannels: initialSalesChannels,
+    tags: initialTags,
+    warehouses: initialWarehouses,
     products: initialProducts,
     draft: createInitialDraft(),
     editingProductId: null,
@@ -142,6 +148,7 @@ export const useStore = create<StoreState>()(
         state.draft = {
           name: clone.name,
           description: clone.description,
+          imageUrl: clone.imageUrl,
           productType: clone.productType,
           simple: clone.simple,
           variant: clone.variant,
@@ -156,17 +163,17 @@ export const useStore = create<StoreState>()(
         state.products = state.products.filter((product) => product.id !== productId);
       }),
 
-    addAttribute: (name, initialValue) => {
+    addAttribute: (name, initialValues) => {
       const attributeId = generateId("attr");
-      const valueId = generateId("val");
+      const valueIds = initialValues.map(() => generateId("val"));
       set((state) => {
         state.attributes.push({
           id: attributeId,
           name,
-          values: [{ id: valueId, value: initialValue }],
+          values: initialValues.map((value, index) => ({ id: valueIds[index], value })),
         });
       });
-      return { attributeId, valueId };
+      return { attributeId, valueIds };
     },
 
     addAttributeValue: (attributeId, value) => {
@@ -206,6 +213,11 @@ export const useStore = create<StoreState>()(
         state.draft.description = description;
       }),
 
+    setProductImage: (imageUrl) =>
+      set((state) => {
+        state.draft.imageUrl = imageUrl;
+      }),
+
     setProductType: (productType) =>
       set((state) => {
         state.draft.productType = productType;
@@ -216,9 +228,9 @@ export const useStore = create<StoreState>()(
         state.draft.simple[field] = value;
       }),
 
-    setSimpleActive: (isActive) =>
+    setSimpleStatus: (status) =>
       set((state) => {
-        state.draft.simple.isActive = isActive;
+        state.draft.simple.status = status;
       }),
 
     setSimpleDimension: (field, value) =>
@@ -229,6 +241,21 @@ export const useStore = create<StoreState>()(
     setSimpleShipmentType: (shipmentTypeId) =>
       set((state) => {
         state.draft.simple.shipmentTypeId = shipmentTypeId;
+      }),
+
+    setSimpleWarehouse: (warehouseId) =>
+      set((state) => {
+        state.draft.simple.warehouseId = warehouseId;
+      }),
+
+    setSimpleManagedInventory: (managedInventory) =>
+      set((state) => {
+        state.draft.simple.managedInventory = managedInventory;
+      }),
+
+    setSimpleAllowBackorder: (allowBackorder) =>
+      set((state) => {
+        state.draft.simple.allowBackorder = allowBackorder;
       }),
 
     addSimpleAttribute: (attributeId) =>
@@ -253,14 +280,19 @@ export const useStore = create<StoreState>()(
           : [...entry.valueIds, valueId];
       }),
 
-    setSimpleChannelPrice: (channelId, field, value) =>
+    setSimpleChannelPrice: (channelId, price) =>
       set((state) => {
-        upsertChannelPrice(state.draft.simple.channelPrices, channelId, field, value);
+        upsertChannelPrice(state.draft.simple.channelPrices, channelId, price);
       }),
 
     setVariantSku: (sku) =>
       set((state) => {
         state.draft.variant.sku = sku;
+      }),
+
+    setVariantPackageAmount: (packageAmount) =>
+      set((state) => {
+        state.draft.variant.packageAmount = packageAmount;
       }),
 
     setVariantDimension: (field, value) =>
@@ -271,6 +303,11 @@ export const useStore = create<StoreState>()(
     setVariantShipmentType: (shipmentTypeId) =>
       set((state) => {
         state.draft.variant.shipmentTypeId = shipmentTypeId;
+      }),
+
+    setVariantWarehouse: (warehouseId) =>
+      set((state) => {
+        state.draft.variant.warehouseId = warehouseId;
       }),
 
     addVariantAttribute: (attributeId) =>
@@ -335,11 +372,11 @@ export const useStore = create<StoreState>()(
         else delete row.optionValues[attributeId];
       }),
 
-    setVariantRowChannelPrice: (rowId, channelId, field, value) =>
+    setVariantRowChannelPrice: (rowId, channelId, price) =>
       set((state) => {
         const row = state.draft.variant.variants.find((v) => v.id === rowId);
         if (!row) return;
-        upsertChannelPrice(row.channelPrices, channelId, field, value);
+        upsertChannelPrice(row.channelPrices, channelId, price);
       }),
 
     setDiscountable: (discountable) =>
@@ -365,16 +402,12 @@ export const useStore = create<StoreState>()(
           : [...categoryIds, categoryId];
       }),
 
-    addOrganizationTag: (tag) =>
+    toggleOrganizationTag: (tagId) =>
       set((state) => {
-        const trimmed = tag.trim();
-        if (!trimmed || state.draft.organization.tags.includes(trimmed)) return;
-        state.draft.organization.tags.push(trimmed);
-      }),
-
-    removeOrganizationTag: (tag) =>
-      set((state) => {
-        state.draft.organization.tags = state.draft.organization.tags.filter((item) => item !== tag);
+        const { tagIds } = state.draft.organization;
+        state.draft.organization.tagIds = tagIds.includes(tagId)
+          ? tagIds.filter((id) => id !== tagId)
+          : [...tagIds, tagId];
       }),
 
     setOrganizationShippingProfileId: (shippingProfileId) =>

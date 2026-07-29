@@ -1,5 +1,7 @@
 "use client";
 
+import { ImageUploadField } from "@/components/products/shared/ImageUploadField";
+import { PublicationStatusSelect } from "@/components/products/shared/PublicationStatusSelect";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -115,6 +117,14 @@ export function VariantsTab() {
 
               {row.expanded && (
                 <div className="flex flex-col gap-4 border-t p-4">
+                  <div className="flex flex-col gap-2">
+                    <Label>תמונת וריאציה</Label>
+                    <ImageUploadField
+                      value={row.imageUrl}
+                      onChange={(imageUrl) => updateVariantRow(row.id, { imageUrl })}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor={`sku-${row.id}`}>מק&quot;ט</Label>
@@ -134,19 +144,7 @@ export function VariantsTab() {
                         onChange={(event) => updateVariantRow(row.id, { price: event.target.value })}
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor={`discount-${row.id}`}>מחיר מבצע (₪)</Label>
-                      <Input
-                        id={`discount-${row.id}`}
-                        type="number"
-                        inputMode="decimal"
-                        value={row.discountPrice}
-                        onChange={(event) =>
-                          updateVariantRow(row.id, { discountPrice: event.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2">
                       <Label htmlFor={`stock-${row.id}`}>כמות במלאי</Label>
                       <Input
                         id={`stock-${row.id}`}
@@ -158,17 +156,36 @@ export function VariantsTab() {
                         }
                       />
                     </div>
+                    <div className="flex flex-col gap-2">
+                      <Label>סטטוס</Label>
+                      <PublicationStatusSelect
+                        value={row.status}
+                        onChange={(status) => updateVariantRow(row.id, { status })}
+                      />
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`active-${row.id}`}
-                      checked={row.isActive}
-                      onCheckedChange={(checked) =>
-                        updateVariantRow(row.id, { isActive: checked === true })
-                      }
-                    />
-                    <Label htmlFor={`active-${row.id}`}>פעיל</Label>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`managed-inventory-${row.id}`}
+                        checked={row.managedInventory}
+                        onCheckedChange={(checked) =>
+                          updateVariantRow(row.id, { managedInventory: checked === true })
+                        }
+                      />
+                      <Label htmlFor={`managed-inventory-${row.id}`}>ניהול מלאי</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`allow-backorder-${row.id}`}
+                        checked={row.allowBackorder}
+                        onCheckedChange={(checked) =>
+                          updateVariantRow(row.id, { allowBackorder: checked === true })
+                        }
+                      />
+                      <Label htmlFor={`allow-backorder-${row.id}`}>אפשר הזמנה מראש כשאין מלאי</Label>
+                    </div>
                   </div>
 
                   {channels.length > 0 && (
@@ -189,27 +206,7 @@ export function VariantsTab() {
                                 className="max-w-40"
                                 value={channelPrice?.price ?? ""}
                                 onChange={(event) =>
-                                  setVariantRowChannelPrice(
-                                    row.id,
-                                    channel.id,
-                                    "price",
-                                    event.target.value
-                                  )
-                                }
-                              />
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                placeholder="מחיר מבצע (₪)"
-                                className="max-w-40"
-                                value={channelPrice?.discountPrice ?? ""}
-                                onChange={(event) =>
-                                  setVariantRowChannelPrice(
-                                    row.id,
-                                    channel.id,
-                                    "discountPrice",
-                                    event.target.value
-                                  )
+                                  setVariantRowChannelPrice(row.id, channel.id, event.target.value)
                                 }
                               />
                             </div>

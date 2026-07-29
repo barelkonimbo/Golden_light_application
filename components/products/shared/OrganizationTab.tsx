@@ -1,7 +1,6 @@
 "use client";
 
 import { EntityMultiSelect } from "@/components/products/shared/EntityMultiSelect";
-import { TagsInput } from "@/components/products/shared/TagsInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -22,13 +21,13 @@ export function OrganizationTab() {
   const categories = useStore((state) => state.categories);
   const shippingProfiles = useStore((state) => state.shippingProfiles);
   const salesChannels = useStore((state) => state.salesChannels);
+  const tags = useStore((state) => state.tags);
 
   const setDiscountable = useStore((state) => state.setDiscountable);
   const setOrganizationTypeId = useStore((state) => state.setOrganizationTypeId);
   const setOrganizationCollectionId = useStore((state) => state.setOrganizationCollectionId);
   const toggleOrganizationCategory = useStore((state) => state.toggleOrganizationCategory);
-  const addOrganizationTag = useStore((state) => state.addOrganizationTag);
-  const removeOrganizationTag = useStore((state) => state.removeOrganizationTag);
+  const toggleOrganizationTag = useStore((state) => state.toggleOrganizationTag);
   const setOrganizationShippingProfileId = useStore(
     (state) => state.setOrganizationShippingProfileId
   );
@@ -99,10 +98,11 @@ export function OrganizationTab() {
 
         <div className="flex flex-col gap-2">
           <Label>תגיות</Label>
-          <TagsInput
-            tags={organization.tags}
-            onAdd={addOrganizationTag}
-            onRemove={removeOrganizationTag}
+          <EntityMultiSelect
+            options={tags}
+            selectedIds={organization.tagIds}
+            onToggle={toggleOrganizationTag}
+            placeholder="בחירת תגיות"
           />
         </div>
 
