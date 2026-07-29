@@ -47,7 +47,7 @@ export function createInitialDraft(): ProductDraft {
   };
 }
 
-export function generateId(prefix: string) {
+function generateId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 

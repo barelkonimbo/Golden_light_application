@@ -1,18 +1,24 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { createEmptyVariantRow, createInitialDraft, generateId } from "./draft";
 import {
-  initialAttributes,
-  initialCategories,
-  initialCollections,
-  initialProducts,
-  initialProductTypes,
-  initialSalesChannels,
-  initialShipmentTypes,
-  initialShippingProfiles,
-  initialTags,
-  initialWarehouses,
-} from "./mock-data";
+  addAttributeValue as apiAddAttributeValue,
+  createAttribute as apiCreateAttribute,
+  createProduct as apiCreateProduct,
+  deleteAttributeValue as apiDeleteAttributeValue,
+  deleteProduct as apiDeleteProduct,
+  listAttributes,
+  listCategories,
+  listCollections,
+  listProducts,
+  listProductTypes,
+  listSalesChannels,
+  listShipmentTypes,
+  listShippingProfiles,
+  listTags,
+  listWarehouses,
+  updateProduct as apiUpdateProduct,
+} from "./api";
+import { createEmptyVariantRow, createInitialDraft } from "./draft";
 import {
   Attribute,
   ChannelPrice,
@@ -33,9 +39,11 @@ import {
 } from "./types";
 
 type View = "list" | "create";
+type FetchStatus = "idle" | "loading" | "ready" | "error";
 
 interface StoreState {
   view: View;
+
   attributes: Attribute[];
   shipmentTypes: ShipmentType[];
   categories: ProductCategory[];
@@ -45,18 +53,30 @@ interface StoreState {
   salesChannels: SalesChannel[];
   tags: ProductTag[];
   warehouses: Warehouse[];
+  lookupsStatus: FetchStatus;
+  lookupsError: string | null;
+
   products: Product[];
+  productsStatus: FetchStatus;
+  productsError: string | null;
+
   draft: ProductDraft;
   editingProductId: string | null;
+  isSaving: boolean;
+  saveError: string | null;
+  deletingProductId: string | null;
+  deleteError: string | null;
+
+  hydrate: () => Promise<void>;
 
   setView: (view: View) => void;
   startCreateProduct: () => void;
   startEditProduct: (productId: string) => void;
-  deleteProduct: (productId: string) => void;
+  deleteProduct: (productId: string) => Promise<void>;
 
-  addAttribute: (name: string, initialValues: string[]) => { attributeId: string; valueIds: string[] };
-  addAttributeValue: (attributeId: string, value: string) => string;
-  removeAttributeValue: (attributeId: string, valueId: string) => void;
+  addAttribute: (name: string, initialValues: string[]) => Promise<{ attributeId: string; valueIds: string[] }>;
+  addAttributeValue: (attributeId: string, value: string) => Promise<string>;
+  removeAttributeValue: (attributeId: string, valueId: string) => Promise<void>;
 
   setName: (name: string) => void;
   setDescription: (description: string) => void;
@@ -100,7 +120,7 @@ interface StoreState {
   setOrganizationShippingProfileId: (shippingProfileId: string | null) => void;
   toggleSalesChannel: (channelId: string) => void;
 
-  saveDraft: () => void;
+  saveDraft: () => Promise<void>;
 }
 
 function upsertChannelPrice(list: ChannelPrice[], channelId: string, price: string) {
@@ -109,21 +129,88 @@ function upsertChannelPrice(list: ChannelPrice[], channelId: string, price: stri
   else list.push({ channelId, price });
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "אירעה שגיאה לא צפויה";
+}
+
 export const useStore = create<StoreState>()(
-  immer((set) => ({
+  immer((set, get) => ({
     view: "list",
-    attributes: initialAttributes,
-    shipmentTypes: initialShipmentTypes,
-    categories: initialCategories,
-    collections: initialCollections,
-    productTypes: initialProductTypes,
-    shippingProfiles: initialShippingProfiles,
-    salesChannels: initialSalesChannels,
-    tags: initialTags,
-    warehouses: initialWarehouses,
-    products: initialProducts,
+
+    attributes: [],
+    shipmentTypes: [],
+    categories: [],
+    collections: [],
+    productTypes: [],
+    shippingProfiles: [],
+    salesChannels: [],
+    tags: [],
+    warehouses: [],
+    lookupsStatus: "idle",
+    lookupsError: null,
+
+    products: [],
+    productsStatus: "idle",
+    productsError: null,
+
     draft: createInitialDraft(),
     editingProductId: null,
+    isSaving: false,
+    saveError: null,
+    deletingProductId: null,
+    deleteError: null,
+
+    hydrate: async () => {
+      set((state) => {
+        state.lookupsStatus = "loading";
+        state.lookupsError = null;
+        state.productsStatus = "loading";
+        state.productsError = null;
+      });
+
+      const [lookupsResult, productsResult] = await Promise.allSettled([
+        Promise.all([
+          listAttributes(),
+          listShipmentTypes(),
+          listCategories(),
+          listCollections(),
+          listProductTypes(),
+          listShippingProfiles(),
+          listSalesChannels(),
+          listTags(),
+          listWarehouses(),
+        ]),
+        listProducts(),
+      ]);
+
+      set((state) => {
+        if (lookupsResult.status === "fulfilled") {
+          const [attributes, shipmentTypes, categories, collections, productTypes, shippingProfiles, salesChannels, tags, warehouses] =
+            lookupsResult.value;
+          state.attributes = attributes;
+          state.shipmentTypes = shipmentTypes;
+          state.categories = categories;
+          state.collections = collections;
+          state.productTypes = productTypes;
+          state.shippingProfiles = shippingProfiles;
+          state.salesChannels = salesChannels;
+          state.tags = tags;
+          state.warehouses = warehouses;
+          state.lookupsStatus = "ready";
+        } else {
+          state.lookupsStatus = "error";
+          state.lookupsError = errorMessage(lookupsResult.reason);
+        }
+
+        if (productsResult.status === "fulfilled") {
+          state.products = productsResult.value;
+          state.productsStatus = "ready";
+        } else {
+          state.productsStatus = "error";
+          state.productsError = errorMessage(productsResult.reason);
+        }
+      });
+    },
 
     setView: (view) =>
       set((state) => {
@@ -134,6 +221,7 @@ export const useStore = create<StoreState>()(
       set((state) => {
         state.draft = createInitialDraft();
         state.editingProductId = null;
+        state.saveError = null;
         state.view = "create";
       }),
 
@@ -155,37 +243,49 @@ export const useStore = create<StoreState>()(
           organization: clone.organization,
         };
         state.editingProductId = productId;
+        state.saveError = null;
         state.view = "create";
       }),
 
-    deleteProduct: (productId) =>
+    deleteProduct: async (productId) => {
       set((state) => {
-        state.products = state.products.filter((product) => product.id !== productId);
-      }),
-
-    addAttribute: (name, initialValues) => {
-      const attributeId = generateId("attr");
-      const valueIds = initialValues.map(() => generateId("val"));
-      set((state) => {
-        state.attributes.push({
-          id: attributeId,
-          name,
-          values: initialValues.map((value, index) => ({ id: valueIds[index], value })),
-        });
+        state.deletingProductId = productId;
+        state.deleteError = null;
       });
-      return { attributeId, valueIds };
+      try {
+        await apiDeleteProduct(productId);
+        set((state) => {
+          state.products = state.products.filter((product) => product.id !== productId);
+          state.deletingProductId = null;
+        });
+      } catch (error) {
+        set((state) => {
+          state.deletingProductId = null;
+          state.deleteError = errorMessage(error);
+        });
+        throw error;
+      }
     },
 
-    addAttributeValue: (attributeId, value) => {
-      const valueId = generateId("val");
+    addAttribute: async (name, initialValues) => {
+      const attribute = await apiCreateAttribute(name, initialValues);
+      set((state) => {
+        state.attributes.push(attribute);
+      });
+      return { attributeId: attribute.id, valueIds: attribute.values.map((value) => value.id) };
+    },
+
+    addAttributeValue: async (attributeId, value) => {
+      const created = await apiAddAttributeValue(attributeId, value);
       set((state) => {
         const attribute = state.attributes.find((item) => item.id === attributeId);
-        attribute?.values.push({ id: valueId, value });
+        attribute?.values.push(created);
       });
-      return valueId;
+      return created.id;
     },
 
-    removeAttributeValue: (attributeId, valueId) =>
+    removeAttributeValue: async (attributeId, valueId) => {
+      await apiDeleteAttributeValue(attributeId, valueId);
       set((state) => {
         const attribute = state.attributes.find((item) => item.id === attributeId);
         if (attribute) attribute.values = attribute.values.filter((item) => item.id !== valueId);
@@ -201,7 +301,8 @@ export const useStore = create<StoreState>()(
         state.draft.variant.variants.forEach((row) => {
           if (row.optionValues[attributeId] === valueId) delete row.optionValues[attributeId];
         });
-      }),
+      });
+    },
 
     setName: (name) =>
       set((state) => {
@@ -423,26 +524,35 @@ export const useStore = create<StoreState>()(
           : [...salesChannelIds, channelId];
       }),
 
-    saveDraft: () =>
+    saveDraft: async () => {
+      const { draft, editingProductId } = get();
       set((state) => {
-        const { draft, editingProductId } = state;
-        const existing = editingProductId
-          ? state.products.find((product) => product.id === editingProductId)
-          : undefined;
+        state.isSaving = true;
+        state.saveError = null;
+      });
 
-        if (existing) {
-          Object.assign(existing, draft);
-        } else {
-          state.products.unshift({
-            ...draft,
-            id: generateId("prod"),
-            createdAt: new Date().toISOString().slice(0, 10),
-          });
-        }
+      try {
+        const saved = editingProductId
+          ? await apiUpdateProduct({ ...draft, id: editingProductId, createdAt: get().products.find((p) => p.id === editingProductId)?.createdAt ?? "" })
+          : await apiCreateProduct(draft);
 
-        state.draft = createInitialDraft();
-        state.editingProductId = null;
-        state.view = "list";
-      }),
+        set((state) => {
+          const index = state.products.findIndex((product) => product.id === saved.id);
+          if (index >= 0) state.products[index] = saved;
+          else state.products.unshift(saved);
+
+          state.draft = createInitialDraft();
+          state.editingProductId = null;
+          state.isSaving = false;
+          state.view = "list";
+        });
+      } catch (error) {
+        set((state) => {
+          state.isSaving = false;
+          state.saveError = errorMessage(error);
+        });
+        throw error;
+      }
+    },
   }))
 );

@@ -20,8 +20,14 @@ export function ProductCreateView() {
   const setView = useStore((state) => state.setView);
   const saveDraft = useStore((state) => state.saveDraft);
   const editingProductId = useStore((state) => state.editingProductId);
+  const isSaving = useStore((state) => state.isSaving);
+  const saveError = useStore((state) => state.saveError);
 
   const isEditing = editingProductId !== null;
+
+  function handleSave() {
+    saveDraft().catch(() => {});
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-8">
@@ -38,11 +44,13 @@ export function ProductCreateView() {
           <Button variant="outline" onClick={() => setView("list")}>
             ביטול
           </Button>
-          <Button onClick={saveDraft} disabled={!name.trim()}>
-            {isEditing ? "עדכון מוצר" : "שמירת מוצר"}
+          <Button onClick={handleSave} disabled={!name.trim() || isSaving}>
+            {isSaving ? "שומר..." : isEditing ? "עדכון מוצר" : "שמירת מוצר"}
           </Button>
         </div>
       </div>
+
+      {saveError && <p className="text-destructive text-sm">{saveError}</p>}
 
       <Card>
         <CardContent className="flex flex-col gap-5">

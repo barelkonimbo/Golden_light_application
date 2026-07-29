@@ -38,7 +38,7 @@ import {
   productSku,
   productStatus,
 } from "@/lib/types";
-import { ImageIcon, Plus, Search, Trash2 } from "lucide-react";
+import { ImageIcon, Loader2, Plus, Search, Trash2 } from "lucide-react";
 
 const ALL = "__all__";
 
@@ -72,6 +72,8 @@ export function ProductListView() {
   const startCreateProduct = useStore((state) => state.startCreateProduct);
   const startEditProduct = useStore((state) => state.startEditProduct);
   const deleteProduct = useStore((state) => state.deleteProduct);
+  const deletingProductId = useStore((state) => state.deletingProductId);
+  const deleteError = useStore((state) => state.deleteError);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
@@ -152,6 +154,8 @@ export function ProductListView() {
           הוספת מוצר חדש
         </Button>
       </div>
+
+      {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
 
       <div className="relative max-w-sm">
         <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
@@ -261,8 +265,17 @@ export function ProductListView() {
                 <TableCell className="pe-6">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" aria-label="מחיקת מוצר">
-                        <Trash2 />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="מחיקת מוצר"
+                        disabled={deletingProductId === product.id}
+                      >
+                        {deletingProductId === product.id ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Trash2 />
+                        )}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -274,7 +287,9 @@ export function ProductListView() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>ביטול</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteProduct(product.id)}>
+                        <AlertDialogAction
+                          onClick={() => deleteProduct(product.id).catch(() => {})}
+                        >
                           מחיקה
                         </AlertDialogAction>
                       </AlertDialogFooter>

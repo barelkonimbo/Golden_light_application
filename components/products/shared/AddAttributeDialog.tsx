@@ -24,19 +24,30 @@ export function AddAttributeDialog({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const addAttribute = useStore((state) => state.addAttribute);
 
-  function handleSave() {
+  async function handleSave() {
     const values = value
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
     if (!name.trim() || values.length === 0) return;
-    const { attributeId, valueIds } = addAttribute(name.trim(), values);
-    onCreated(attributeId, valueIds);
-    setName("");
-    setValue("");
-    setOpen(false);
+
+    setIsSaving(true);
+    setError(null);
+    try {
+      const { attributeId, valueIds } = await addAttribute(name.trim(), values);
+      onCreated(attributeId, valueIds);
+      setName("");
+      setValue("");
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שמירת התכונה נכשלה");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -70,6 +81,7 @@ export function AddAttributeDialog({
               placeholder='למשל: "אדום, כחול, ירוק"'
             />
           </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -77,8 +89,8 @@ export function AddAttributeDialog({
               ביטול
             </Button>
           </DialogClose>
-          <Button type="button" onClick={handleSave} disabled={!name.trim() || !value.trim()}>
-            שמירה
+          <Button type="button" onClick={handleSave} disabled={!name.trim() || !value.trim() || isSaving}>
+            {isSaving ? "שומר..." : "שמירה"}
           </Button>
         </DialogFooter>
       </DialogContent>

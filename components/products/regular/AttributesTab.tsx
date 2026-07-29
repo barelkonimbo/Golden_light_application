@@ -66,7 +66,11 @@ export function RegularAttributesTab() {
                   values={attribute.values}
                   selectedValueIds={selection.valueIds}
                   onToggle={(valueId) => toggleSimpleAttributeValue(attribute.id, valueId)}
-                  onDeleteValue={(valueId) => removeAttributeValue(attribute.id, valueId)}
+                  onDeleteValue={(valueId) =>
+                    removeAttributeValue(attribute.id, valueId).catch((error) =>
+                      console.error("מחיקת הערך נכשלה", error)
+                    )
+                  }
                 />
                 <AddValueDialog
                   attributeId={attribute.id}

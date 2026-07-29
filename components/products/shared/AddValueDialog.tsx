@@ -26,18 +26,29 @@ export function AddValueDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const addAttributeValue = useStore((state) => state.addAttributeValue);
 
-  function handleSave() {
+  async function handleSave() {
     const values = value
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
     if (values.length === 0) return;
-    const valueIds = values.map((item) => addAttributeValue(attributeId, item));
-    onCreated?.(valueIds);
-    setValue("");
-    setOpen(false);
+
+    setIsSaving(true);
+    setError(null);
+    try {
+      const valueIds = await Promise.all(values.map((item) => addAttributeValue(attributeId, item)));
+      onCreated?.(valueIds);
+      setValue("");
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שמירת הערך נכשלה");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -63,6 +74,7 @@ export function AddValueDialog({
               if (event.key === "Enter") handleSave();
             }}
           />
+          {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -70,8 +82,8 @@ export function AddValueDialog({
               ביטול
             </Button>
           </DialogClose>
-          <Button type="button" onClick={handleSave} disabled={!value.trim()}>
-            שמירה
+          <Button type="button" onClick={handleSave} disabled={!value.trim() || isSaving}>
+            {isSaving ? "שומר..." : "שמירה"}
           </Button>
         </DialogFooter>
       </DialogContent>
