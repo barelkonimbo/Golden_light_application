@@ -28,7 +28,7 @@ export function AddValueDialog({
   const [value, setValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const addAttributeValue = useStore((state) => state.addAttributeValue);
+  const addAttributeValues = useStore((state) => state.addAttributeValues);
 
   async function handleSave() {
     const values = value
@@ -40,7 +40,7 @@ export function AddValueDialog({
     setIsSaving(true);
     setError(null);
     try {
-      const valueIds = await Promise.all(values.map((item) => addAttributeValue(attributeId, item)));
+      const valueIds = await addAttributeValues(attributeId, values);
       onCreated?.(valueIds);
       setValue("");
       setOpen(false);

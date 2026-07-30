@@ -164,14 +164,14 @@ export const createAttribute = (
     values,
   });
 
-export const addAttributeValue = (
+export const addAttributeValues = (
   attributeId: string,
-  value: string
-): Promise<AttributeValue> =>
-  callFlow<AttributeValue>("attributes", {
-    op: "addValue",
+  values: string[]
+): Promise<AttributeValue[]> =>
+  callFlow<AttributeValue[]>("attributes", {
+    op: "addValues",
     attributeId,
-    value,
+    values,
   });
 
 export const deleteAttributeValue = (

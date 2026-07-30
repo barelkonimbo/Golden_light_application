@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import {
-  addAttributeValue as apiAddAttributeValue,
+  addAttributeValues as apiAddAttributeValues,
   createAttribute as apiCreateAttribute,
   createProduct as apiCreateProduct,
   deleteAttributeValue as apiDeleteAttributeValue,
@@ -83,7 +83,7 @@ interface StoreState {
   deleteProduct: (productId: string) => Promise<void>;
 
   addAttribute: (name: string, initialValues: string[]) => Promise<{ attributeId: string; valueIds: string[] }>;
-  addAttributeValue: (attributeId: string, value: string) => Promise<string>;
+  addAttributeValues: (attributeId: string, values: string[]) => Promise<string[]>;
   removeAttributeValue: (attributeId: string, valueId: string) => Promise<void>;
 
   setName: (name: string) => void;
@@ -344,13 +344,20 @@ export const useStore = create<StoreState>()(
       return { attributeId: attribute.id, valueIds: attribute.values.map((value) => value.id) };
     },
 
-    addAttributeValue: async (attributeId, value) => {
-      const created = await apiAddAttributeValue(attributeId, value);
+    addAttributeValues: async (attributeId, values) => {
+      const created = await apiAddAttributeValues(attributeId, values);
       set((state) => {
         const attribute = state.attributes.find((item) => item.id === attributeId);
-        attribute?.values.push(created);
+        if (!attribute) return;
+        const existingIds = new Set(attribute.values.map((v) => v.id));
+        for (const value of created) {
+          if (!existingIds.has(value.id)) {
+            attribute.values.push(value);
+            existingIds.add(value.id);
+          }
+        }
       });
-      return created.id;
+      return created.map((v) => v.id);
     },
 
     removeAttributeValue: async (attributeId, valueId) => {
