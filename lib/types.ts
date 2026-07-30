@@ -26,6 +26,11 @@ export type Warehouse = NamedEntity;
 
 export type ProductType = "simple" | "variant";
 
+export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  simple: "מוצר רגיל",
+  variant: "מוצר עם וריאציות",
+};
+
 export type PublicationStatus = "draft" | "published" | "proposed" | "rejected";
 
 export const PUBLICATION_STATUS_LABELS: Record<PublicationStatus, string> = {

@@ -32,13 +32,14 @@ import {
 } from "@/components/ui/table";
 import { useStore } from "@/lib/store";
 import {
+  PRODUCT_TYPE_LABELS,
   PUBLICATION_STATUS_LABELS,
   Product,
   productPriceLabel,
   productSku,
   productStatus,
 } from "@/lib/types";
-import { ImageIcon, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { ImageIcon, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 
 const ALL = "__all__";
 
@@ -71,18 +72,21 @@ export function ProductListView() {
   const productsPage = useStore((state) => state.productsPage);
   const productsPageSize = useStore((state) => state.productsPageSize);
   const productsTotal = useStore((state) => state.productsTotal);
+  const productsSearch = useStore((state) => state.productsSearch);
   const setProductsPage = useStore((state) => state.setProductsPage);
   const setProductsPageSize = useStore((state) => state.setProductsPageSize);
+  const setProductsSearch = useStore((state) => state.setProductsSearch);
+  const fetchProducts = useStore((state) => state.fetchProducts);
   const categories = useStore((state) => state.categories);
-  const tags = useStore((state) => state.tags);
   const startCreateProduct = useStore((state) => state.startCreateProduct);
   const startEditProduct = useStore((state) => state.startEditProduct);
   const deleteProduct = useStore((state) => state.deleteProduct);
   const deletingProductId = useStore((state) => state.deletingProductId);
   const deleteError = useStore((state) => state.deleteError);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(productsSearch);
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
+  const [productTypeFilter, setProductTypeFilter] = useState(ALL);
   const [sortBy, setSortBy] = useState<SortOption>("date-desc");
 
   const totalPages = Math.max(1, Math.ceil(productsTotal / productsPageSize));
@@ -94,15 +98,10 @@ export function ProductListView() {
       .filter((name): name is string => Boolean(name));
   }
 
-  function tagNames(tagIds: string[]) {
-    return tagIds
-      .map((id) => tags.find((tag) => tag.id === id)?.name)
-      .filter((name): name is string => Boolean(name));
-  }
-
   const visibleProducts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-
+    // Text search (name/description/handle/SKU) runs server-side against the
+    // whole catalog - `products` already only contains matches. These are
+    // extra client-side filters layered on top of that page.
     const filtered = products.filter((product) => {
       if (categoryFilter !== ALL && !product.organization.categoryIds.includes(categoryFilter)) {
         return false;
@@ -110,20 +109,10 @@ export function ProductListView() {
       if (statusFilter !== ALL && productStatus(product) !== statusFilter) {
         return false;
       }
-      if (!normalized) return true;
-      const haystack = [
-        product.name,
-        product.description,
-        productSku(product),
-        ...categoryNames(product.organization.categoryIds),
-        ...tagNames(product.organization.tagIds),
-        ...(product.productType === "variant"
-          ? product.variant.variants.map((variant) => variant.sku)
-          : []),
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(normalized);
+      if (productTypeFilter !== ALL && product.productType !== productTypeFilter) {
+        return false;
+      }
+      return true;
     });
 
     const sorted = [...filtered];
@@ -146,8 +135,7 @@ export function ProductListView() {
       }
     });
     return sorted;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, query, categories, tags, categoryFilter, statusFilter, sortBy]);
+  }, [products, categoryFilter, statusFilter, productTypeFilter, sortBy]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-8">
@@ -158,10 +146,21 @@ export function ProductListView() {
             {visibleProducts.length} מוצגים מתוך {productsTotal} מוצרים בקטלוג
           </p>
         </div>
-        <Button onClick={startCreateProduct}>
-          <Plus />
-          הוספת מוצר חדש
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="רענון רשימת המוצרים"
+            onClick={() => void fetchProducts()}
+            disabled={isProductsLoading}
+          >
+            <RefreshCw className={isProductsLoading ? "animate-spin" : undefined} />
+          </Button>
+          <Button onClick={startCreateProduct}>
+            <Plus />
+            הוספת מוצר חדש
+          </Button>
+        </div>
       </div>
 
       {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
@@ -171,9 +170,25 @@ export function ProductListView() {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="חיפוש לפי שם, מק&quot;ט, תיאור, קטגוריה או תגית"
-          className="ps-9"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void setProductsSearch(query.trim());
+          }}
+          placeholder="חיפוש לפי שם, מק&quot;ט או תיאור (בכל הקטלוג) - הקשה על Enter לחיפוש"
+          className="ps-9 pe-9"
         />
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              if (productsSearch) void setProductsSearch("");
+            }}
+            aria-label="ניקוי חיפוש"
+            className="text-muted-foreground hover:text-foreground absolute end-3 top-1/2 -translate-y-1/2"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -199,6 +214,20 @@ export function ProductListView() {
             <SelectItem value={ALL}>כל הסטטוסים</SelectItem>
             {Object.entries(PUBLICATION_STATUS_LABELS).map(([status, label]) => (
               <SelectItem key={status} value={status}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>כל סוגי המוצרים</SelectItem>
+            {Object.entries(PRODUCT_TYPE_LABELS).map(([type, label]) => (
+              <SelectItem key={type} value={type}>
                 {label}
               </SelectItem>
             ))}

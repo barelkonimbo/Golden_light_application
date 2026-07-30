@@ -50,7 +50,9 @@ export function ProductCreateView() {
         </div>
       </div>
 
-      {saveError && <p className="text-destructive text-sm">{saveError}</p>}
+      {saveError && (
+        <p className="text-destructive text-sm whitespace-pre-line">{saveError}</p>
+      )}
 
       <Card>
         <CardContent className="flex flex-col gap-5">
@@ -60,7 +62,9 @@ export function ProductCreateView() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="product-name">שם המוצר</Label>
+            <Label htmlFor="product-name">
+              שם המוצר <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="product-name"
               value={name}

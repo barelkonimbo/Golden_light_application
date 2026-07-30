@@ -120,6 +120,11 @@ export function VariantAttributesTab() {
                         }
                       />
                     </div>
+                    {selection.meantForVariants && selection.selectedValueIds.length === 0 && (
+                      <p className="text-destructive text-sm">
+                        חובה לבחור לפחות ערך אחד עבור תכונה שמסומנת כ&quot;נועד עבור וריאציות&quot;
+                      </p>
+                    )}
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id={`meant-for-variants-${attribute.id}`}

@@ -190,11 +190,13 @@ export const deleteAttributeValue = (
 
 export const listProducts = (
   page = 1,
-  limit = 25
+  limit = 25,
+  search = ""
 ): Promise<PaginatedProductsResponse> =>
   callFlow<PaginatedProductsResponse>("listProducts", {
     page,
     limit,
+    search,
   });
 
 export const createProduct = (

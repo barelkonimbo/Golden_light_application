@@ -18,7 +18,7 @@ import {
   listWarehouses,
   updateProduct as apiUpdateProduct,
 } from "./api";
-import { createEmptyVariantRow, createInitialDraft } from "./draft";
+import { createEmptyVariantRow, createInitialDraft, validateDraft } from "./draft";
 import {
   Attribute,
   ChannelPrice,
@@ -62,6 +62,7 @@ interface StoreState {
   productsPage: number;
   productsPageSize: number;
   productsTotal: number;
+  productsSearch: string;
 
   draft: ProductDraft;
   editingProductId: string | null;
@@ -71,9 +72,10 @@ interface StoreState {
   deleteError: string | null;
 
   hydrate: () => Promise<void>;
-  fetchProducts: (page?: number, limit?: number) => Promise<void>;
+  fetchProducts: (page?: number, limit?: number, search?: string) => Promise<void>;
   setProductsPage: (page: number) => Promise<void>;
   setProductsPageSize: (pageSize: number) => Promise<void>;
+  setProductsSearch: (search: string) => Promise<void>;
 
   setView: (view: View) => void;
   startCreateProduct: () => void;
@@ -139,6 +141,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "אירעה שגיאה לא צפויה";
 }
 
+// Guards against an older in-flight fetchProducts() call resolving after a
+// newer one and clobbering its (more current) results.
+let productsFetchToken = 0;
+
 export const useStore = create<StoreState>()(
   immer((set, get) => ({
     view: "list",
@@ -161,6 +167,7 @@ export const useStore = create<StoreState>()(
     productsPage: 1,
     productsPageSize: 25,
     productsTotal: 0,
+    productsSearch: "",
 
     draft: createInitialDraft(),
     editingProductId: null,
@@ -224,19 +231,26 @@ export const useStore = create<StoreState>()(
       });
     },
 
-    fetchProducts: async (page = get().productsPage, limit = get().productsPageSize) => {
+    fetchProducts: async (
+      page = get().productsPage,
+      limit = get().productsPageSize,
+      search = get().productsSearch
+    ) => {
       const safePage = Math.max(1, Math.floor(page));
       const safeLimit = Math.max(1, Math.floor(limit));
+      const token = ++productsFetchToken;
 
       set((state) => {
         state.productsPage = safePage;
         state.productsPageSize = safeLimit;
+        state.productsSearch = search;
         state.productsStatus = "loading";
         state.productsError = null;
       });
 
       try {
-        const result = await listProducts(safePage, safeLimit);
+        const result = await listProducts(safePage, safeLimit, search);
+        if (token !== productsFetchToken) return;
 
         set((state) => {
           state.products = result.items;
@@ -244,6 +258,8 @@ export const useStore = create<StoreState>()(
           state.productsStatus = "ready";
         });
       } catch (error) {
+        if (token !== productsFetchToken) return;
+
         set((state) => {
           state.productsStatus = "error";
           state.productsError = errorMessage(error);
@@ -258,6 +274,10 @@ export const useStore = create<StoreState>()(
 
     setProductsPageSize: async (pageSize) => {
       await get().fetchProducts(1, pageSize);
+    },
+
+    setProductsSearch: async (search) => {
+      await get().fetchProducts(1, get().productsPageSize, search);
     },
 
     setView: (view) =>
@@ -575,6 +595,16 @@ export const useStore = create<StoreState>()(
 
     saveDraft: async () => {
       const { draft, editingProductId } = get();
+
+      const errors = validateDraft(draft);
+      if (errors.length > 0) {
+        const message = errors.join("\n");
+        set((state) => {
+          state.saveError = message;
+        });
+        throw new Error(message);
+      }
+
       set((state) => {
         state.isSaving = true;
         state.saveError = null;

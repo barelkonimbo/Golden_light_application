@@ -60,6 +60,10 @@ export function VariantsTab() {
         </Button>
       </div>
 
+      {variantAttributes.length > 0 && rows.length === 0 && (
+        <p className="text-destructive text-sm">חובה להוסיף לפחות וריאציה אחת</p>
+      )}
+
       {rows.length > 0 && (
         <div className="flex flex-col gap-2">
           {rows.map((row) => (
@@ -78,29 +82,34 @@ export function VariantsTab() {
                 </button>
 
                 <div className="flex flex-1 flex-wrap items-center gap-2">
-                  {variantAttributes.map(({ attribute, selectedValueIds }) => (
-                    <Select
-                      key={attribute.id}
-                      value={row.optionValues[attribute.id] ?? UNSET}
-                      onValueChange={(valueId) =>
-                        setVariantRowOption(row.id, attribute.id, valueId === UNSET ? null : valueId)
-                      }
-                    >
-                      <SelectTrigger className="w-36">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={UNSET}>כל {attribute.name}</SelectItem>
-                        {attribute.values
-                          .filter((value) => selectedValueIds.includes(value.id))
-                          .map((value) => (
-                            <SelectItem key={value.id} value={value.id}>
-                              {value.value}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  ))}
+                  {variantAttributes.map(({ attribute, selectedValueIds }) => {
+                    const isUnset = !row.optionValues[attribute.id];
+                    return (
+                      <Select
+                        key={attribute.id}
+                        value={row.optionValues[attribute.id] ?? UNSET}
+                        onValueChange={(valueId) =>
+                          setVariantRowOption(row.id, attribute.id, valueId === UNSET ? null : valueId)
+                        }
+                      >
+                        <SelectTrigger className={`w-36 ${isUnset ? "border-destructive" : ""}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={UNSET} disabled>
+                            בחירת {attribute.name} *
+                          </SelectItem>
+                          {attribute.values
+                            .filter((value) => selectedValueIds.includes(value.id))
+                            .map((value) => (
+                              <SelectItem key={value.id} value={value.id}>
+                                {value.value}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })}
                 </div>
 
                 {row.sku && <span className="text-muted-foreground text-sm">{row.sku}</span>}
