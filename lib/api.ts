@@ -32,12 +32,12 @@ import {
 } from "./types";
 
 const FLOW_URLS = {
-  lookups: "",
-  attributes: "",
-  listProducts: "",
-  upsertProduct: "",
-  deleteProduct: "",
-  uploadImage: "",
+  lookups: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/lookups_goldenlight",
+  attributes: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/attributes_goldenlight_app",
+  listProducts: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/list_products_goldenlight_app",
+  upsertProduct: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/upsert_product_goldenlight",
+  deleteProduct: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/delete_product_goldenlight_app",
+  uploadImage: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/upload_image_goldenlight_app",
 };
 
 function flowUrl(flow: keyof typeof FLOW_URLS, query?: Record<string, string>): string {
