@@ -1,19 +1,16 @@
 /**
- * All calls from the frontend to Medusa go through Windmill flows. There are
- * 6 flows backing this file (see the flows spec doc): `lookups` and
- * `attributes` are each one flow that handles several related operations,
- * distinguished by a query param on the URL; `listProducts`, `upsertProduct`,
- * `deleteProduct` and `uploadImage` are each their own flow.
+ * Frontend API client.
  *
- * Once a flow is built and deployed in Windmill, it gives you a URL — paste
- * it into the matching entry in FLOW_URLS below and every function that uses
- * it starts working. Nothing else needs to change.
+ * The browser never calls Windmill directly. All requests are sent to the
+ * Next.js API proxy under /api/windmill/[flow].
  *
- * Credentials for Medusa/RMS live inside the flows themselves (Windmill
- * variables/resources), not here — these URLs are just endpoints to call.
+ * Authentication flow:
  *
- * See the flows spec doc for the exact request/response shape each flow must
- * implement, including exactly which query param value each operation uses.
+ * Browser
+ *   -> Next.js API route
+ *   -> authenticated Windmill flow
+ *   -> Medusa authentication node
+ *   -> Medusa
  */
 
 import {
@@ -32,106 +29,235 @@ import {
 } from "./types";
 
 const FLOW_URLS = {
-  lookups: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/lookups_goldenlight",
-  attributes: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/attributes_goldenlight_app",
-  listProducts: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/list_products_goldenlight_app",
-  upsertProduct: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/upsert_product_goldenlight",
-  deleteProduct: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/delete_product_goldenlight_app",
-  uploadImage: "https://flow.youleap.com/api/w/admins/jobs/run/f/u/barelh/upload_image_goldenlight_app",
-};
+  lookups: "/api/windmill/lookups",
+  attributes: "/api/windmill/attributes",
+  listProducts: "/api/windmill/listProducts",
+  upsertProduct: "/api/windmill/upsertProduct",
+  deleteProduct: "/api/windmill/deleteProduct",
+  uploadImage: "/api/windmill/uploadImage",
+} as const;
 
-function flowUrl(flow: keyof typeof FLOW_URLS, query?: Record<string, string>): string {
-  const base = FLOW_URLS[flow];
-  if (!base) {
-    throw new Error(
-      `No URL set for "${flow}" yet. Paste the URL Windmill gives you after deploying this ` +
-        `flow into FLOW_URLS in lib/api.ts.`
-    );
-  }
-  if (!query) return base;
-  const separator = base.includes("?") ? "&" : "?";
-  return `${base}${separator}${new URLSearchParams(query).toString()}`;
+type FlowName = keyof typeof FLOW_URLS;
+
+interface ApiErrorResponse {
+  error?: string;
+  details?: unknown;
+  upstreamStatus?: number;
 }
 
-async function callFlow<T>(url: string, payload: unknown = {}): Promise<T> {
-  const response = await fetch(url, {
+/**
+ * Calls a Windmill flow through the Next.js server-side proxy.
+ */
+async function callFlow<T>(
+  flow: FlowName,
+  payload: unknown = {}
+): Promise<T> {
+  const response = await fetch(FLOW_URLS[flow], {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(payload),
+    cache: "no-store",
   });
 
+  const responseText = await response.text();
+
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`Flow call failed: ${response.status} ${text}`);
+    let errorMessage = responseText;
+
+    try {
+      const parsed = JSON.parse(responseText) as ApiErrorResponse;
+
+      errorMessage =
+        parsed.error ??
+        (typeof parsed.details === "string"
+          ? parsed.details
+          : JSON.stringify(parsed.details ?? parsed));
+    } catch {
+      // The upstream response was not JSON.
+    }
+
+    throw new Error(
+      `Flow "${flow}" failed with status ${response.status}: ${errorMessage}`
+    );
   }
 
-  return response.json();
+  if (!responseText) {
+    return undefined as T;
+  }
+
+  try {
+    return JSON.parse(responseText) as T;
+  } catch {
+    throw new Error(
+      `Flow "${flow}" returned an invalid JSON response: ${responseText.slice(
+        0,
+        500
+      )}`
+    );
+  }
 }
 
-// ---- Lookups (all served by the one "lookups" flow, routed by ?resource=) ----
+// -----------------------------------------------------------------------------
+// Lookups
+// -----------------------------------------------------------------------------
 
-export const listCategories = () =>
-  callFlow<ProductCategory[]>(flowUrl("lookups", { resource: "categories" }));
-export const listCollections = () =>
-  callFlow<ProductCollection[]>(flowUrl("lookups", { resource: "collections" }));
-export const listProductTypes = () =>
-  callFlow<ProductTypeOption[]>(flowUrl("lookups", { resource: "productTypes" }));
-export const listShippingProfiles = () =>
-  callFlow<ShippingProfile[]>(flowUrl("lookups", { resource: "shippingProfiles" }));
-export const listSalesChannels = () =>
-  callFlow<SalesChannel[]>(flowUrl("lookups", { resource: "salesChannels" }));
-export const listTags = () => callFlow<ProductTag[]>(flowUrl("lookups", { resource: "tags" }));
-export const listWarehouses = () =>
-  callFlow<Warehouse[]>(flowUrl("lookups", { resource: "warehouses" }));
-export const listShipmentTypes = () =>
-  callFlow<ShipmentType[]>(flowUrl("lookups", { resource: "shipmentTypes" }));
+export const listCategories = (): Promise<ProductCategory[]> =>
+  callFlow<ProductCategory[]>("lookups", {
+    resource: "categories",
+  });
 
-// ---- Attributes (all served by the one "attributes" flow, routed by ?op=) ----
+export const listCollections = (): Promise<ProductCollection[]> =>
+  callFlow<ProductCollection[]>("lookups", {
+    resource: "collections",
+  });
 
-export const listAttributes = () => callFlow<Attribute[]>(flowUrl("attributes", { op: "list" }));
+export const listProductTypes = (): Promise<ProductTypeOption[]> =>
+  callFlow<ProductTypeOption[]>("lookups", {
+    resource: "productTypes",
+  });
 
-export const createAttribute = (name: string, values: string[]) =>
-  callFlow<Attribute>(flowUrl("attributes", { op: "create" }), { name, values });
+export const listShippingProfiles = (): Promise<ShippingProfile[]> =>
+  callFlow<ShippingProfile[]>("lookups", {
+    resource: "shippingProfiles",
+  });
 
-export const addAttributeValue = (attributeId: string, value: string) =>
-  callFlow<AttributeValue>(flowUrl("attributes", { op: "addValue" }), { attributeId, value });
+export const listSalesChannels = (): Promise<SalesChannel[]> =>
+  callFlow<SalesChannel[]>("lookups", {
+    resource: "salesChannels",
+  });
 
-export const deleteAttributeValue = (attributeId: string, valueId: string) =>
-  callFlow<{ success: true }>(flowUrl("attributes", { op: "deleteValue" }), { attributeId, valueId });
+export const listTags = (): Promise<ProductTag[]> =>
+  callFlow<ProductTag[]>("lookups", {
+    resource: "tags",
+  });
 
-// ---- Products ----
+export const listWarehouses = (): Promise<Warehouse[]> =>
+  callFlow<Warehouse[]>("lookups", {
+    resource: "warehouses",
+  });
 
-export const listProducts = () => callFlow<Product[]>(flowUrl("listProducts"));
+export const listShipmentTypes = (): Promise<ShipmentType[]> =>
+  callFlow<ShipmentType[]>("lookups", {
+    resource: "shipmentTypes",
+  });
 
-// create and update share one "upsertProduct" flow — the flow tells them
-// apart by whether the payload has an "id" (see flows spec doc).
-export const createProduct = (draft: ProductDraft) => callFlow<Product>(flowUrl("upsertProduct"), draft);
-export const updateProduct = (product: Product) => callFlow<Product>(flowUrl("upsertProduct"), product);
+// -----------------------------------------------------------------------------
+// Attributes
+// -----------------------------------------------------------------------------
 
-export const deleteProduct = (id: string) =>
-  callFlow<{ success: true }>(flowUrl("deleteProduct"), { id });
+export const listAttributes = (): Promise<Attribute[]> =>
+  callFlow<Attribute[]>("attributes", {
+    op: "list",
+  });
 
-// ---- Images ----
+export const createAttribute = (
+  name: string,
+  values: string[]
+): Promise<Attribute> =>
+  callFlow<Attribute>("attributes", {
+    op: "create",
+    name,
+    values,
+  });
+
+export const addAttributeValue = (
+  attributeId: string,
+  value: string
+): Promise<AttributeValue> =>
+  callFlow<AttributeValue>("attributes", {
+    op: "addValue",
+    attributeId,
+    value,
+  });
+
+export const deleteAttributeValue = (
+  attributeId: string,
+  valueId: string
+): Promise<{ success: true }> =>
+  callFlow<{ success: true }>("attributes", {
+    op: "deleteValue",
+    attributeId,
+    valueId,
+  });
+
+// -----------------------------------------------------------------------------
+// Products
+// -----------------------------------------------------------------------------
+
+export const listProducts = (): Promise<Product[]> =>
+  callFlow<Product[]>("listProducts");
+
+export const createProduct = (
+  draft: ProductDraft
+): Promise<Product> =>
+  callFlow<Product>("upsertProduct", draft);
+
+export const updateProduct = (
+  product: Product
+): Promise<Product> =>
+  callFlow<Product>("upsertProduct", product);
+
+export const deleteProduct = (
+  id: string
+): Promise<{ success: true }> =>
+  callFlow<{ success: true }>("deleteProduct", {
+    id,
+  });
+
+// -----------------------------------------------------------------------------
+// Images
+// -----------------------------------------------------------------------------
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = () => {
-      const result = reader.result as string;
-      // strip the "data:<mime>;base64," prefix — the flow gets raw base64 + mimeType separately
-      resolve(result.slice(result.indexOf(",") + 1));
+      if (typeof reader.result !== "string") {
+        reject(new Error("The selected file could not be converted to Base64."));
+        return;
+      }
+
+      const commaIndex = reader.result.indexOf(",");
+
+      if (commaIndex === -1) {
+        reject(new Error("The generated Base64 data URL is invalid."));
+        return;
+      }
+
+      resolve(reader.result.slice(commaIndex + 1));
     };
-    reader.onerror = () => reject(reader.error);
+
+    reader.onerror = () => {
+      reject(reader.error ?? new Error("The selected file could not be read."));
+    };
+
     reader.readAsDataURL(file);
   });
 }
 
 export async function uploadProductImage(file: File): Promise<string> {
+  if (!file) {
+    throw new Error("No image file was selected.");
+  }
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("The selected file is not an image.");
+  }
+
   const dataBase64 = await fileToBase64(file);
-  const { url } = await callFlow<{ url: string }>(flowUrl("uploadImage"), {
+
+  const result = await callFlow<{ url: string }>("uploadImage", {
     fileName: file.name,
     mimeType: file.type,
     dataBase64,
   });
-  return url;
+
+  if (!result?.url) {
+    throw new Error("The upload flow did not return an image URL.");
+  }
+
+  return result.url;
 }
