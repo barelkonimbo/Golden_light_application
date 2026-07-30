@@ -184,19 +184,37 @@ export const deleteAttributeValue = (
     valueId,
   });
 
+export const deleteAttribute = (
+  attributeId: string
+): Promise<{ success: true }> =>
+  callFlow<{ success: true }>("attributes", {
+    op: "deleteAttribute",
+    attributeId,
+  });
+
 // -----------------------------------------------------------------------------
 // Products
 // -----------------------------------------------------------------------------
 
+export interface ListProductsFilters {
+  categoryId?: string;
+  status?: string;
+  productType?: string;
+}
+
 export const listProducts = (
   page = 1,
   limit = 25,
-  search = ""
+  search = "",
+  filters: ListProductsFilters = {}
 ): Promise<PaginatedProductsResponse> =>
   callFlow<PaginatedProductsResponse>("listProducts", {
     page,
     limit,
     search,
+    categoryId: filters.categoryId ?? "",
+    status: filters.status ?? "",
+    productType: filters.productType ?? "",
   });
 
 export const createProduct = (

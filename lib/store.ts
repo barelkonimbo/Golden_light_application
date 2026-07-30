@@ -4,12 +4,14 @@ import {
   addAttributeValues as apiAddAttributeValues,
   createAttribute as apiCreateAttribute,
   createProduct as apiCreateProduct,
+  deleteAttribute as apiDeleteAttribute,
   deleteAttributeValue as apiDeleteAttributeValue,
   deleteProduct as apiDeleteProduct,
   listAttributes,
   listCategories,
   listCollections,
   listProducts,
+  ListProductsFilters,
   listProductTypes,
   listSalesChannels,
   listShipmentTypes,
@@ -63,19 +65,33 @@ interface StoreState {
   productsPageSize: number;
   productsTotal: number;
   productsSearch: string;
+  productsCategoryFilter: string;
+  productsStatusFilter: string;
+  productsProductTypeFilter: string;
 
   draft: ProductDraft;
   editingProductId: string | null;
   isSaving: boolean;
   saveError: string | null;
+  /** True once a save has been attempted for the current draft - lets tabs
+   *  the user hasn't opened yet still surface their own required-field
+   *  errors as soon as they're visited, without waiting for another Save
+   *  click. Reset whenever a fresh create/edit draft starts. */
+  saveAttempted: boolean;
   deletingProductId: string | null;
   deleteError: string | null;
 
   hydrate: () => Promise<void>;
-  fetchProducts: (page?: number, limit?: number, search?: string) => Promise<void>;
+  fetchProducts: (
+    page?: number,
+    limit?: number,
+    search?: string,
+    filters?: ListProductsFilters
+  ) => Promise<void>;
   setProductsPage: (page: number) => Promise<void>;
   setProductsPageSize: (pageSize: number) => Promise<void>;
   setProductsSearch: (search: string) => Promise<void>;
+  setProductsFilters: (filters: ListProductsFilters) => Promise<void>;
 
   setView: (view: View) => void;
   startCreateProduct: () => void;
@@ -85,6 +101,9 @@ interface StoreState {
   addAttribute: (name: string, initialValues: string[]) => Promise<{ attributeId: string; valueIds: string[] }>;
   addAttributeValues: (attributeId: string, values: string[]) => Promise<string[]>;
   removeAttributeValue: (attributeId: string, valueId: string) => Promise<void>;
+  /** Deletes the attribute from the shared library entirely (not just this
+   *  product's selection of it) - also scrubs it out of the current draft. */
+  removeAttribute: (attributeId: string) => Promise<void>;
 
   setName: (name: string) => void;
   setDescription: (description: string) => void;
@@ -205,11 +224,15 @@ export const useStore = create<StoreState>()(
     productsPageSize: 25,
     productsTotal: 0,
     productsSearch: "",
+    productsCategoryFilter: "",
+    productsStatusFilter: "",
+    productsProductTypeFilter: "",
 
     draft: createInitialDraft(),
     editingProductId: null,
     isSaving: false,
     saveError: null,
+    saveAttempted: false,
     deletingProductId: null,
     deleteError: null,
 
@@ -271,7 +294,12 @@ export const useStore = create<StoreState>()(
     fetchProducts: async (
       page = get().productsPage,
       limit = get().productsPageSize,
-      search = get().productsSearch
+      search = get().productsSearch,
+      filters = {
+        categoryId: get().productsCategoryFilter,
+        status: get().productsStatusFilter,
+        productType: get().productsProductTypeFilter,
+      }
     ) => {
       const safePage = Math.max(1, Math.floor(page));
       const safeLimit = Math.max(1, Math.floor(limit));
@@ -281,12 +309,15 @@ export const useStore = create<StoreState>()(
         state.productsPage = safePage;
         state.productsPageSize = safeLimit;
         state.productsSearch = search;
+        state.productsCategoryFilter = filters.categoryId ?? "";
+        state.productsStatusFilter = filters.status ?? "";
+        state.productsProductTypeFilter = filters.productType ?? "";
         state.productsStatus = "loading";
         state.productsError = null;
       });
 
       try {
-        const result = await listProducts(safePage, safeLimit, search);
+        const result = await listProducts(safePage, safeLimit, search, filters);
         if (token !== productsFetchToken) return;
 
         set((state) => {
@@ -317,6 +348,15 @@ export const useStore = create<StoreState>()(
       await get().fetchProducts(1, get().productsPageSize, search);
     },
 
+    setProductsFilters: async (filters) => {
+      const merged = {
+        categoryId: filters.categoryId ?? get().productsCategoryFilter,
+        status: filters.status ?? get().productsStatusFilter,
+        productType: filters.productType ?? get().productsProductTypeFilter,
+      };
+      await get().fetchProducts(1, get().productsPageSize, get().productsSearch, merged);
+    },
+
     setView: (view) =>
       set((state) => {
         state.view = view;
@@ -327,6 +367,7 @@ export const useStore = create<StoreState>()(
         state.draft = createInitialDraft();
         state.editingProductId = null;
         state.saveError = null;
+        state.saveAttempted = false;
         state.view = "create";
       }),
 
@@ -349,6 +390,7 @@ export const useStore = create<StoreState>()(
         };
         state.editingProductId = productId;
         state.saveError = null;
+        state.saveAttempted = false;
         state.view = "create";
       }),
 
@@ -413,6 +455,22 @@ export const useStore = create<StoreState>()(
 
         state.draft.variant.variants.forEach((row) => {
           if (row.optionValues[attributeId] === valueId) delete row.optionValues[attributeId];
+        });
+      });
+    },
+
+    removeAttribute: async (attributeId) => {
+      await apiDeleteAttribute(attributeId);
+      set((state) => {
+        state.attributes = state.attributes.filter((item) => item.id !== attributeId);
+        state.draft.simple.attributes = state.draft.simple.attributes.filter(
+          (a) => a.attributeId !== attributeId
+        );
+        state.draft.variant.attributes = state.draft.variant.attributes.filter(
+          (a) => a.attributeId !== attributeId
+        );
+        state.draft.variant.variants.forEach((row) => {
+          delete row.optionValues[attributeId];
         });
       });
     },
@@ -674,6 +732,10 @@ export const useStore = create<StoreState>()(
 
     saveDraft: async () => {
       const { draft, editingProductId } = get();
+
+      set((state) => {
+        state.saveAttempted = true;
+      });
 
       const errors = validateDraft(draft);
       if (errors.length > 0) {

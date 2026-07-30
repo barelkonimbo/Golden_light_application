@@ -3,19 +3,13 @@
 import { useState } from "react";
 import { AddAttributeDialog } from "@/components/products/shared/AddAttributeDialog";
 import { AddValueDialog } from "@/components/products/shared/AddValueDialog";
+import { AttributeSelect } from "@/components/products/shared/AttributeSelect";
 import { ValuesMultiSelect } from "@/components/products/shared/ValuesMultiSelect";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useStore } from "@/lib/store";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 export function VariantAttributesTab() {
   const attributes = useStore((state) => state.attributes);
@@ -24,6 +18,7 @@ export function VariantAttributesTab() {
   const removeVariantAttribute = useStore((state) => state.removeVariantAttribute);
   const toggleVariantAttributeValue = useStore((state) => state.toggleVariantAttributeValue);
   const removeAttributeValue = useStore((state) => state.removeAttributeValue);
+  const removeAttribute = useStore((state) => state.removeAttribute);
   const setVariantAttributeMeantForVariants = useStore(
     (state) => state.setVariantAttributeMeantForVariants
   );
@@ -45,18 +40,15 @@ export function VariantAttributesTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <Select value="" onValueChange={(attributeId) => addVariantAttribute(attributeId)}>
-          <SelectTrigger className="max-w-xs">
-            <SelectValue placeholder="בחר תכונה קיימת" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableAttributes.map((attribute) => (
-              <SelectItem key={attribute.id} value={attribute.id}>
-                {attribute.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AttributeSelect
+          attributes={availableAttributes}
+          onSelect={addVariantAttribute}
+          onDeleteAttribute={(attributeId) =>
+            removeAttribute(attributeId).catch((error) =>
+              console.error("מחיקת התכונה נכשלה", error)
+            )
+          }
+        />
         <AddAttributeDialog
           onCreated={(attributeId, valueIds) => {
             addVariantAttribute(attributeId);
@@ -93,9 +85,11 @@ export function VariantAttributesTab() {
                     type="button"
                     variant="ghost"
                     size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label={`מחיקת תכונה ${attribute.name}`}
                     onClick={() => removeVariantAttribute(selection.attributeId)}
                   >
-                    <X />
+                    <Trash2 />
                   </Button>
                 </div>
                 {isExpanded && (

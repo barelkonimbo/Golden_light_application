@@ -77,6 +77,15 @@ export function validateDraft(draft: ProductDraft): string[] {
     errors.push("יש להזין שם מוצר");
   }
 
+  // Medusa/RMS rejects a product create/update with no shipping profile
+  // (confirmed live - see golden_light_application_flows/DISCOVERIES.md
+  // "shipping_profile_id is not a clearable field") - every product must
+  // belong to one, so this is enforced here rather than left to surface as a
+  // raw backend error.
+  if (!draft.organization.shippingProfileId) {
+    errors.push("יש לבחור פרופיל משלוח");
+  }
+
   if (draft.productType === "variant") {
     const variantForming = draft.variant.attributes.filter((selection) => selection.meantForVariants);
 

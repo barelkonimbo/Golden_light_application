@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { EntityMultiSelect } from "@/components/products/shared/EntityMultiSelect";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,6 +33,11 @@ export function OrganizationTab() {
     (state) => state.setOrganizationShippingProfileId
   );
   const toggleSalesChannel = useStore((state) => state.toggleSalesChannel);
+  const saveAttempted = useStore((state) => state.saveAttempted);
+  const [shippingProfileTouched, setShippingProfileTouched] = useState(false);
+
+  const showShippingProfileError =
+    (shippingProfileTouched || saveAttempted) && !organization.shippingProfileId;
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,18 +113,20 @@ export function OrganizationTab() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>פרופיל משלוח</Label>
+          <Label>
+            פרופיל משלוח <span className="text-destructive">*</span>
+          </Label>
           <Select
-            value={organization.shippingProfileId ?? UNSET}
-            onValueChange={(value) =>
-              setOrganizationShippingProfileId(value === UNSET ? null : value)
-            }
+            value={organization.shippingProfileId ?? ""}
+            onValueChange={setOrganizationShippingProfileId}
+            onOpenChange={(open) => {
+              if (!open) setShippingProfileTouched(true);
+            }}
           >
-            <SelectTrigger className="max-w-xs">
+            <SelectTrigger className="max-w-xs" aria-invalid={showShippingProfileError}>
               <SelectValue placeholder="בחר פרופיל משלוח" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={UNSET}>ללא</SelectItem>
               {shippingProfiles.map((profile) => (
                 <SelectItem key={profile.id} value={profile.id}>
                   {profile.name}
@@ -126,6 +134,7 @@ export function OrganizationTab() {
               ))}
             </SelectContent>
           </Select>
+          {showShippingProfileError && <p className="text-destructive text-sm">שדה חובה</p>}
         </div>
 
         <div className="flex flex-col gap-2">

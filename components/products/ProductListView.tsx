@@ -37,7 +37,6 @@ import {
   Product,
   productPriceLabel,
   productSku,
-  productStatus,
 } from "@/lib/types";
 import { ImageIcon, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 
@@ -73,9 +72,13 @@ export function ProductListView() {
   const productsPageSize = useStore((state) => state.productsPageSize);
   const productsTotal = useStore((state) => state.productsTotal);
   const productsSearch = useStore((state) => state.productsSearch);
+  const productsCategoryFilter = useStore((state) => state.productsCategoryFilter);
+  const productsStatusFilter = useStore((state) => state.productsStatusFilter);
+  const productsProductTypeFilter = useStore((state) => state.productsProductTypeFilter);
   const setProductsPage = useStore((state) => state.setProductsPage);
   const setProductsPageSize = useStore((state) => state.setProductsPageSize);
   const setProductsSearch = useStore((state) => state.setProductsSearch);
+  const setProductsFilters = useStore((state) => state.setProductsFilters);
   const fetchProducts = useStore((state) => state.fetchProducts);
   const categories = useStore((state) => state.categories);
   const startCreateProduct = useStore((state) => state.startCreateProduct);
@@ -84,10 +87,11 @@ export function ProductListView() {
   const deletingProductId = useStore((state) => state.deletingProductId);
   const deleteError = useStore((state) => state.deleteError);
   const [query, setQuery] = useState(productsSearch);
-  const [categoryFilter, setCategoryFilter] = useState(ALL);
-  const [statusFilter, setStatusFilter] = useState(ALL);
-  const [productTypeFilter, setProductTypeFilter] = useState(ALL);
   const [sortBy, setSortBy] = useState<SortOption>("date-desc");
+
+  const categoryFilter = productsCategoryFilter || ALL;
+  const statusFilter = productsStatusFilter || ALL;
+  const productTypeFilter = productsProductTypeFilter || ALL;
 
   const totalPages = Math.max(1, Math.ceil(productsTotal / productsPageSize));
   const isProductsLoading = productsStatus === "loading";
@@ -98,24 +102,11 @@ export function ProductListView() {
       .filter((name): name is string => Boolean(name));
   }
 
+  // Category/status/product-type filters are applied server-side (see
+  // setProductsFilters) against the whole catalog, so `products` already only
+  // contains matches - only sorting happens client-side, on the current page.
   const visibleProducts = useMemo(() => {
-    // Text search (name/description/handle/SKU) runs server-side against the
-    // whole catalog - `products` already only contains matches. These are
-    // extra client-side filters layered on top of that page.
-    const filtered = products.filter((product) => {
-      if (categoryFilter !== ALL && !product.organization.categoryIds.includes(categoryFilter)) {
-        return false;
-      }
-      if (statusFilter !== ALL && productStatus(product) !== statusFilter) {
-        return false;
-      }
-      if (productTypeFilter !== ALL && product.productType !== productTypeFilter) {
-        return false;
-      }
-      return true;
-    });
-
-    const sorted = [...filtered];
+    const sorted = [...products];
     sorted.sort((a, b) => {
       switch (sortBy) {
         case "date-asc":
@@ -135,7 +126,7 @@ export function ProductListView() {
       }
     });
     return sorted;
-  }, [products, categoryFilter, statusFilter, productTypeFilter, sortBy]);
+  }, [products, sortBy]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-8">
@@ -192,7 +183,13 @@ export function ProductListView() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select
+          value={categoryFilter}
+          onValueChange={(value) =>
+            void setProductsFilters({ categoryId: value === ALL ? "" : value })
+          }
+          disabled={isProductsLoading}
+        >
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -206,7 +203,13 @@ export function ProductListView() {
           </SelectContent>
         </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) =>
+            void setProductsFilters({ status: value === ALL ? "" : value })
+          }
+          disabled={isProductsLoading}
+        >
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -220,7 +223,13 @@ export function ProductListView() {
           </SelectContent>
         </Select>
 
-        <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+        <Select
+          value={productTypeFilter}
+          onValueChange={(value) =>
+            void setProductsFilters({ productType: value === ALL ? "" : value })
+          }
+          disabled={isProductsLoading}
+        >
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -253,10 +262,10 @@ export function ProductListView() {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="h-11 w-16 ps-6" />
-              <TableHead>שם</TableHead>
-              <TableHead>מק&quot;ט</TableHead>
+              <TableHead className="max-w-56">שם</TableHead>
+              <TableHead className="max-w-32">מק&quot;ט</TableHead>
               <TableHead>מחיר</TableHead>
-              <TableHead>קטגוריות</TableHead>
+              <TableHead className="max-w-48">קטגוריות</TableHead>
               <TableHead>תאריך יצירה</TableHead>
               <TableHead className="w-10 pe-6" />
             </TableRow>
@@ -278,25 +287,31 @@ export function ProductListView() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="font-medium">
+                <TableCell className="max-w-56 font-medium">
                   <button
                     type="button"
                     onClick={() => startEditProduct(product.id)}
-                    className="text-start text-blue-600 underline decoration-blue-600/30 underline-offset-4 transition-colors hover:decoration-blue-600 dark:text-blue-400 dark:decoration-blue-400/30 dark:hover:decoration-blue-400"
+                    title={product.name}
+                    className="block max-w-full truncate text-start text-blue-600 underline decoration-blue-600/30 underline-offset-4 transition-colors hover:decoration-blue-600 dark:text-blue-400 dark:decoration-blue-400/30 dark:hover:decoration-blue-400"
                   >
                     {product.name}
                   </button>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-muted-foreground max-w-32 truncate" title={productSku(product) || undefined}>
                   {productSku(product) || "—"}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {productPriceLabel(product)}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-muted-foreground max-w-48">
                   {(() => {
                     const names = categoryNames(product.organization.categoryIds);
-                    return names.length > 0 ? names.join(", ") : "—";
+                    const label = names.length > 0 ? names.join(", ") : "—";
+                    return (
+                      <span className="block truncate" title={label}>
+                        {label}
+                      </span>
+                    );
                   })()}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{product.createdAt}</TableCell>

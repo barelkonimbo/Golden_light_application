@@ -2,17 +2,11 @@
 
 import { AddAttributeDialog } from "@/components/products/shared/AddAttributeDialog";
 import { AddValueDialog } from "@/components/products/shared/AddValueDialog";
+import { AttributeSelect } from "@/components/products/shared/AttributeSelect";
 import { ValuesMultiSelect } from "@/components/products/shared/ValuesMultiSelect";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useStore } from "@/lib/store";
-import { X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 export function RegularAttributesTab() {
   const attributes = useStore((state) => state.attributes);
@@ -21,6 +15,7 @@ export function RegularAttributesTab() {
   const removeSimpleAttribute = useStore((state) => state.removeSimpleAttribute);
   const toggleSimpleAttributeValue = useStore((state) => state.toggleSimpleAttributeValue);
   const removeAttributeValue = useStore((state) => state.removeAttributeValue);
+  const removeAttribute = useStore((state) => state.removeAttribute);
 
   const availableAttributes = attributes.filter(
     (attribute) => !selections.some((selection) => selection.attributeId === attribute.id)
@@ -29,18 +24,15 @@ export function RegularAttributesTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <Select value="" onValueChange={(attributeId) => addSimpleAttribute(attributeId)}>
-          <SelectTrigger className="max-w-xs">
-            <SelectValue placeholder="בחר תכונה קיימת" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableAttributes.map((attribute) => (
-              <SelectItem key={attribute.id} value={attribute.id}>
-                {attribute.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AttributeSelect
+          attributes={availableAttributes}
+          onSelect={addSimpleAttribute}
+          onDeleteAttribute={(attributeId) =>
+            removeAttribute(attributeId).catch((error) =>
+              console.error("מחיקת התכונה נכשלה", error)
+            )
+          }
+        />
         <AddAttributeDialog
           onCreated={(attributeId, valueIds) => {
             addSimpleAttribute(attributeId);
@@ -84,10 +76,11 @@ export function RegularAttributesTab() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="ms-auto"
+                  className="text-muted-foreground hover:text-destructive ms-auto"
+                  aria-label={`מחיקת תכונה ${attribute.name}`}
                   onClick={() => removeSimpleAttribute(selection.attributeId)}
                 >
-                  <X />
+                  <Trash2 />
                 </Button>
               </div>
             );

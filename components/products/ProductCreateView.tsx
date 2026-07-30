@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ProductDataSection } from "@/components/products/ProductDataSection";
 import { ImageUploadField } from "@/components/products/shared/ImageUploadField";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,11 @@ export function ProductCreateView() {
   const editingProductId = useStore((state) => state.editingProductId);
   const isSaving = useStore((state) => state.isSaving);
   const saveError = useStore((state) => state.saveError);
+  const saveAttempted = useStore((state) => state.saveAttempted);
+  const [nameTouched, setNameTouched] = useState(false);
 
   const isEditing = editingProductId !== null;
+  const showNameError = (nameTouched || saveAttempted) && !name.trim();
 
   function handleSave() {
     saveDraft().catch(() => {});
@@ -72,7 +76,10 @@ export function ProductCreateView() {
               id="product-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
+              onBlur={() => setNameTouched(true)}
+              aria-invalid={showNameError}
             />
+            {showNameError && <p className="text-destructive text-sm">שדה חובה</p>}
           </div>
 
           <div className="flex flex-col gap-2">
