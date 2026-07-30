@@ -61,6 +61,9 @@ export interface VariantAttributeSelection {
 export interface ChannelPrice {
   channelId: string;
   price: string;
+  /** True once the client has directly edited this channel's price - it then
+   *  stops following the top price field. UI-only, ignore on the backend. */
+  overridden?: boolean;
 }
 
 /** Stock-handling fields that live on whichever level actually gets sold: the

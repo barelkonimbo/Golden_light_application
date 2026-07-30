@@ -11,6 +11,7 @@ export function RegularGeneralTab() {
   const salesChannels = useStore((state) => state.salesChannels);
   const setSimpleField = useStore((state) => state.setSimpleField);
   const setSimpleChannelPrice = useStore((state) => state.setSimpleChannelPrice);
+  const resetSimpleChannelPrice = useStore((state) => state.resetSimpleChannelPrice);
 
   const channels = selectedChannelIds
     .map((channelId) => salesChannels.find((channel) => channel.id === channelId))
@@ -44,10 +45,13 @@ export function RegularGeneralTab() {
                   <Input
                     type="number"
                     inputMode="decimal"
-                    placeholder={price || "מחיר (₪)"}
+                    placeholder="מחיר (₪)"
                     className="max-w-40"
                     value={channelPrice?.price ?? ""}
                     onChange={(event) => setSimpleChannelPrice(channel.id, event.target.value)}
+                    onBlur={(event) => {
+                      if (event.target.value === "") resetSimpleChannelPrice(channel.id);
+                    }}
                   />
                 </div>
               );

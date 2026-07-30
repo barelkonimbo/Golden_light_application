@@ -30,6 +30,7 @@ export function VariantsTab() {
   const updateVariantRow = useStore((state) => state.updateVariantRow);
   const setVariantRowOption = useStore((state) => state.setVariantRowOption);
   const setVariantRowChannelPrice = useStore((state) => state.setVariantRowChannelPrice);
+  const resetVariantRowChannelPrice = useStore((state) => state.resetVariantRowChannelPrice);
 
   const variantAttributes = attributeSelections
     .filter((selection) => selection.meantForVariants)
@@ -214,12 +215,17 @@ export function VariantsTab() {
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder={row.price || "מחיר (₪)"}
+                                placeholder="מחיר (₪)"
                                 className="max-w-40"
                                 value={channelPrice?.price ?? ""}
                                 onChange={(event) =>
                                   setVariantRowChannelPrice(row.id, channel.id, event.target.value)
                                 }
+                                onBlur={(event) => {
+                                  if (event.target.value === "") {
+                                    resetVariantRowChannelPrice(row.id, channel.id);
+                                  }
+                                }}
                               />
                             </div>
                           );

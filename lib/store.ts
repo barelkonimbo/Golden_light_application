@@ -102,6 +102,7 @@ interface StoreState {
   removeSimpleAttribute: (attributeId: string) => void;
   toggleSimpleAttributeValue: (attributeId: string, valueId: string) => void;
   setSimpleChannelPrice: (channelId: string, price: string) => void;
+  resetSimpleChannelPrice: (channelId: string) => void;
 
   setVariantSku: (sku: string) => void;
   setVariantPackageAmount: (packageAmount: string) => void;
@@ -119,6 +120,7 @@ interface StoreState {
   updateVariantRow: (id: string, changes: Partial<VariantRow>) => void;
   setVariantRowOption: (rowId: string, attributeId: string, valueId: string | null) => void;
   setVariantRowChannelPrice: (rowId: string, channelId: string, price: string) => void;
+  resetVariantRowChannelPrice: (rowId: string, channelId: string) => void;
 
   setDiscountable: (discountable: boolean) => void;
   setOrganizationTypeId: (typeId: string | null) => void;
@@ -131,16 +133,45 @@ interface StoreState {
   saveDraft: () => Promise<void>;
 }
 
-// An empty price removes the channel override entirely (rather than storing
-// an explicit ""), so the input reverts to defaulting off the top price.
-function upsertChannelPrice(list: ChannelPrice[], channelId: string, price: string) {
-  const index = list.findIndex((item) => item.channelId === channelId);
-  if (price === "") {
-    if (index >= 0) list.splice(index, 1);
-    return;
+// Direct edit of a single channel's price: it now holds its own value
+// (whatever was typed, including a transient empty string while editing) and
+// stops following the top price field. Never snaps the value back mid-edit -
+// see clearChannelPriceOverride for the only place a channel rejoins the sync.
+function setChannelPriceOverride(list: ChannelPrice[], channelId: string, price: string) {
+  const entry = list.find((item) => item.channelId === channelId);
+  if (entry) {
+    entry.price = price;
+    entry.overridden = true;
+  } else {
+    list.push({ channelId, price, overridden: true });
   }
-  if (index >= 0) list[index].price = price;
-  else list.push({ channelId, price });
+}
+
+// Called on blur when a channel's field was left empty: rejoins the top-price
+// sync instead of staying stuck on an explicit blank value.
+function clearChannelPriceOverride(list: ChannelPrice[], channelId: string, price: string) {
+  const entry = list.find((item) => item.channelId === channelId);
+  if (entry) {
+    entry.price = price;
+    entry.overridden = false;
+  } else {
+    list.push({ channelId, price, overridden: false });
+  }
+}
+
+// Propagates the top price to every given channel that hasn't been
+// individually overridden (new channels get seeded, untouched ones get
+// updated to match) - called whenever the top price field or a channel
+// selection changes. Entries the client has directly edited are left alone.
+function syncChannelPricesToPrice(list: ChannelPrice[], channelIds: string[], price: string) {
+  for (const channelId of channelIds) {
+    const entry = list.find((item) => item.channelId === channelId);
+    if (entry) {
+      if (!entry.overridden) entry.price = price;
+    } else {
+      list.push({ channelId, price, overridden: false });
+    }
+  }
 }
 
 function errorMessage(error: unknown): string {
@@ -409,6 +440,13 @@ export const useStore = create<StoreState>()(
     setSimpleField: (field, value) =>
       set((state) => {
         state.draft.simple[field] = value;
+        if (field === "price") {
+          syncChannelPricesToPrice(
+            state.draft.simple.channelPrices,
+            state.draft.organization.salesChannelIds,
+            value
+          );
+        }
       }),
 
     setSimpleStatus: (status) =>
@@ -465,7 +503,12 @@ export const useStore = create<StoreState>()(
 
     setSimpleChannelPrice: (channelId, price) =>
       set((state) => {
-        upsertChannelPrice(state.draft.simple.channelPrices, channelId, price);
+        setChannelPriceOverride(state.draft.simple.channelPrices, channelId, price);
+      }),
+
+    resetSimpleChannelPrice: (channelId) =>
+      set((state) => {
+        clearChannelPriceOverride(state.draft.simple.channelPrices, channelId, state.draft.simple.price);
       }),
 
     setVariantSku: (sku) =>
@@ -544,7 +587,15 @@ export const useStore = create<StoreState>()(
     updateVariantRow: (id, changes) =>
       set((state) => {
         const row = state.draft.variant.variants.find((v) => v.id === id);
-        if (row) Object.assign(row, changes);
+        if (!row) return;
+        Object.assign(row, changes);
+        if (changes.price !== undefined) {
+          syncChannelPricesToPrice(
+            row.channelPrices,
+            state.draft.organization.salesChannelIds,
+            changes.price
+          );
+        }
       }),
 
     setVariantRowOption: (rowId, attributeId, valueId) =>
@@ -559,7 +610,14 @@ export const useStore = create<StoreState>()(
       set((state) => {
         const row = state.draft.variant.variants.find((v) => v.id === rowId);
         if (!row) return;
-        upsertChannelPrice(row.channelPrices, channelId, price);
+        setChannelPriceOverride(row.channelPrices, channelId, price);
+      }),
+
+    resetVariantRowChannelPrice: (rowId, channelId) =>
+      set((state) => {
+        const row = state.draft.variant.variants.find((v) => v.id === rowId);
+        if (!row) return;
+        clearChannelPriceOverride(row.channelPrices, channelId, row.price);
       }),
 
     setDiscountable: (discountable) =>
@@ -601,9 +659,17 @@ export const useStore = create<StoreState>()(
     toggleSalesChannel: (channelId) =>
       set((state) => {
         const { salesChannelIds } = state.draft.organization;
-        state.draft.organization.salesChannelIds = salesChannelIds.includes(channelId)
-          ? salesChannelIds.filter((id) => id !== channelId)
-          : [...salesChannelIds, channelId];
+        const isAdding = !salesChannelIds.includes(channelId);
+        state.draft.organization.salesChannelIds = isAdding
+          ? [...salesChannelIds, channelId]
+          : salesChannelIds.filter((id) => id !== channelId);
+
+        if (isAdding) {
+          syncChannelPricesToPrice(state.draft.simple.channelPrices, [channelId], state.draft.simple.price);
+          for (const row of state.draft.variant.variants) {
+            syncChannelPricesToPrice(row.channelPrices, [channelId], row.price);
+          }
+        }
       }),
 
     saveDraft: async () => {
