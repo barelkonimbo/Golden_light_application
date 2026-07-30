@@ -100,7 +100,9 @@ export interface SimpleProductData extends Dimensions, StockHandling {
 }
 
 export interface VariantProductData extends Dimensions {
-  sku: string;
+  /** The parent product's Medusa `handle` - a product with variants has no
+   *  product-level SKU (each variant has its own), only a handle. */
+  handle: string;
   packageAmount: string;
   warehouseId: string | null;
   shipmentTypeId: string | null;
@@ -140,7 +142,7 @@ export interface PaginatedProductsResponse {
 }
 
 export function productSku(product: ProductDraft): string {
-  return product.productType === "simple" ? product.simple.sku : product.variant.sku;
+  return product.productType === "simple" ? product.simple.sku : product.variant.handle;
 }
 
 export function productPriceLabel(product: ProductDraft): string {

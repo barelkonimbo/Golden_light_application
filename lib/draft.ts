@@ -24,7 +24,7 @@ export function createInitialDraft(): ProductDraft {
       channelPrices: [],
     },
     variant: {
-      sku: "",
+      handle: "",
       packageAmount: "",
       warehouseId: null,
       weight: "",

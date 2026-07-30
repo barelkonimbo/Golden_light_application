@@ -14,9 +14,12 @@ export function ProductCreateView() {
   const name = useStore((state) => state.draft.name);
   const description = useStore((state) => state.draft.description);
   const imageUrls = useStore((state) => state.draft.imageUrls);
+  const productType = useStore((state) => state.draft.productType);
+  const handle = useStore((state) => state.draft.variant.handle);
   const setName = useStore((state) => state.setName);
   const setDescription = useStore((state) => state.setDescription);
   const setProductImages = useStore((state) => state.setProductImages);
+  const setVariantHandle = useStore((state) => state.setVariantHandle);
   const setView = useStore((state) => state.setView);
   const saveDraft = useStore((state) => state.saveDraft);
   const editingProductId = useStore((state) => state.editingProductId);
@@ -81,6 +84,21 @@ export function ProductCreateView() {
               onChange={(event) => setDescription(event.target.value)}
             />
           </div>
+
+          {productType === "variant" && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="product-handle">מזהה</Label>
+              <Input
+                id="product-handle"
+                value={handle}
+                onChange={(event) => setVariantHandle(event.target.value)}
+                placeholder="לדוגמה: metro-flag, nexos"
+              />
+              <p className="text-muted-foreground text-sm">
+                יש להזין מזהה טקסטואלי (מילה אחת, ללא רווחים) עבור המוצר, לדוגמה: metro-flag, nexos. השדה אינו חובה - אם יישאר ריק, Medusa תיצור מזהה אוטומטית.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

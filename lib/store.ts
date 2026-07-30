@@ -104,7 +104,7 @@ interface StoreState {
   setSimpleChannelPrice: (channelId: string, price: string) => void;
   resetSimpleChannelPrice: (channelId: string) => void;
 
-  setVariantSku: (sku: string) => void;
+  setVariantHandle: (handle: string) => void;
   setVariantPackageAmount: (packageAmount: string) => void;
   setVariantDimension: (field: keyof Dimensions, value: string) => void;
   setVariantShipmentType: (shipmentTypeId: string | null) => void;
@@ -511,9 +511,9 @@ export const useStore = create<StoreState>()(
         clearChannelPriceOverride(state.draft.simple.channelPrices, channelId, state.draft.simple.price);
       }),
 
-    setVariantSku: (sku) =>
+    setVariantHandle: (handle) =>
       set((state) => {
-        state.draft.variant.sku = sku;
+        state.draft.variant.handle = handle;
       }),
 
     setVariantPackageAmount: (packageAmount) =>
