@@ -200,6 +200,9 @@ export function VariantsTab() {
                   {channels.length > 0 && (
                     <div className="flex flex-col gap-2 border-t pt-4">
                       <span className="text-sm font-medium">מחירים לפי ערוץ מכירה</span>
+                      <p className="text-muted-foreground text-sm">
+                        ניתן לקבוע מחיר שונה לכל ערוץ מכירה שנבחר בלשונית &quot;ארגון&quot;. ערוץ ללא מחיר יעשה שימוש במחיר הרגיל.
+                      </p>
                       <div className="flex flex-col gap-2">
                         {channels.map((channel) => {
                           const channelPrice = row.channelPrices.find(
@@ -211,7 +214,7 @@ export function VariantsTab() {
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                placeholder="מחיר (₪)"
+                                placeholder={row.price || "מחיר (₪)"}
                                 className="max-w-40"
                                 value={channelPrice?.price ?? ""}
                                 onChange={(event) =>

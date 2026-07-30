@@ -44,7 +44,7 @@ export function RegularGeneralTab() {
                   <Input
                     type="number"
                     inputMode="decimal"
-                    placeholder="מחיר (₪)"
+                    placeholder={price || "מחיר (₪)"}
                     className="max-w-40"
                     value={channelPrice?.price ?? ""}
                     onChange={(event) => setSimpleChannelPrice(channel.id, event.target.value)}

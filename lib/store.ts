@@ -131,9 +131,15 @@ interface StoreState {
   saveDraft: () => Promise<void>;
 }
 
+// An empty price removes the channel override entirely (rather than storing
+// an explicit ""), so the input reverts to defaulting off the top price.
 function upsertChannelPrice(list: ChannelPrice[], channelId: string, price: string) {
-  const entry = list.find((item) => item.channelId === channelId);
-  if (entry) entry.price = price;
+  const index = list.findIndex((item) => item.channelId === channelId);
+  if (price === "") {
+    if (index >= 0) list.splice(index, 1);
+    return;
+  }
+  if (index >= 0) list[index].price = price;
   else list.push({ channelId, price });
 }
 
