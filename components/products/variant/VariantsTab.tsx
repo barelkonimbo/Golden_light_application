@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DEFAULT_SALES_CHANNEL_NAME } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 
@@ -45,7 +46,8 @@ export function VariantsTab() {
 
   const channels = selectedChannelIds
     .map((channelId) => salesChannels.find((channel) => channel.id === channelId))
-    .filter((channel): channel is NonNullable<typeof channel> => Boolean(channel));
+    .filter((channel): channel is NonNullable<typeof channel> => Boolean(channel))
+    .filter((channel) => channel.name !== DEFAULT_SALES_CHANNEL_NAME);
 
   return (
     <div className="flex flex-col gap-4">

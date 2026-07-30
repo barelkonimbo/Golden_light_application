@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DEFAULT_SALES_CHANNEL_NAME } from "@/lib/types";
 import { useStore } from "@/lib/store";
 
 export function RegularGeneralTab() {
@@ -15,7 +16,8 @@ export function RegularGeneralTab() {
 
   const channels = selectedChannelIds
     .map((channelId) => salesChannels.find((channel) => channel.id === channelId))
-    .filter((channel): channel is NonNullable<typeof channel> => Boolean(channel));
+    .filter((channel): channel is NonNullable<typeof channel> => Boolean(channel))
+    .filter((channel) => channel.name !== DEFAULT_SALES_CHANNEL_NAME);
 
   return (
     <div className="flex flex-col gap-6">

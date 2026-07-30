@@ -21,6 +21,11 @@ export type ProductCollection = NamedEntity;
 export type ProductTypeOption = NamedEntity;
 export type ShippingProfile = NamedEntity;
 export type SalesChannel = NamedEntity;
+
+/** Medusa's literal seeded name for the auto-created default channel. Its
+ *  price is just the top price field - it never gets its own channel-price
+ *  row (see GeneralTab.tsx / VariantsTab.tsx). */
+export const DEFAULT_SALES_CHANNEL_NAME = "Default Sales Channel";
 export type ProductTag = NamedEntity;
 export type Warehouse = NamedEntity;
 
