@@ -88,7 +88,7 @@ interface StoreState {
 
   setName: (name: string) => void;
   setDescription: (description: string) => void;
-  setProductImage: (imageUrl: string | null) => void;
+  setProductImages: (imageUrls: string[]) => void;
   setProductType: (productType: ProductType) => void;
 
   setSimpleField: (field: "price" | "sku" | "stockQuantity" | "packageAmount", value: string) => void;
@@ -304,7 +304,7 @@ export const useStore = create<StoreState>()(
         state.draft = {
           name: clone.name,
           description: clone.description,
-          imageUrl: clone.imageUrl,
+          imageUrls: clone.imageUrls,
           productType: clone.productType,
           simple: clone.simple,
           variant: clone.variant,
@@ -383,9 +383,9 @@ export const useStore = create<StoreState>()(
         state.draft.description = description;
       }),
 
-    setProductImage: (imageUrl) =>
+    setProductImages: (imageUrls) =>
       set((state) => {
-        state.draft.imageUrl = imageUrl;
+        state.draft.imageUrls = imageUrls;
       }),
 
     setProductType: (productType) =>

@@ -266,10 +266,10 @@ export function ProductListView() {
               <TableRow key={product.id}>
                 <TableCell className="ps-6">
                   <div className="bg-muted flex size-10 items-center justify-center overflow-hidden rounded-md border">
-                    {product.imageUrl ? (
+                    {product.imageUrls[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={product.imageUrl}
+                        src={product.imageUrls[0]}
                         alt=""
                         className="size-full object-cover"
                       />

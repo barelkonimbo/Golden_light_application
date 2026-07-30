@@ -80,7 +80,7 @@ export interface VariantRow extends StockHandling {
   price: string;
   stockQuantity: string;
   channelPrices: ChannelPrice[];
-  imageUrl: string | null;
+  imageUrls: string[];
   expanded: boolean;
 }
 
@@ -118,7 +118,7 @@ export interface ProductOrganization {
 export interface ProductDraft {
   name: string;
   description: string;
-  imageUrl: string | null;
+  imageUrls: string[];
   productType: ProductType;
   simple: SimpleProductData;
   variant: VariantProductData;

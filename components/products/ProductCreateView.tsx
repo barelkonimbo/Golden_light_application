@@ -13,10 +13,10 @@ import { ArrowRight } from "lucide-react";
 export function ProductCreateView() {
   const name = useStore((state) => state.draft.name);
   const description = useStore((state) => state.draft.description);
-  const imageUrl = useStore((state) => state.draft.imageUrl);
+  const imageUrls = useStore((state) => state.draft.imageUrls);
   const setName = useStore((state) => state.setName);
   const setDescription = useStore((state) => state.setDescription);
-  const setProductImage = useStore((state) => state.setProductImage);
+  const setProductImages = useStore((state) => state.setProductImages);
   const setView = useStore((state) => state.setView);
   const saveDraft = useStore((state) => state.saveDraft);
   const editingProductId = useStore((state) => state.editingProductId);
@@ -58,7 +58,7 @@ export function ProductCreateView() {
         <CardContent className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <Label>תמונת מוצר</Label>
-            <ImageUploadField value={imageUrl} onChange={setProductImage} />
+            <ImageUploadField values={imageUrls} onChange={setProductImages} />
           </div>
 
           <div className="flex flex-col gap-2">

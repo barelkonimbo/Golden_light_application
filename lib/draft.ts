@@ -4,7 +4,7 @@ export function createInitialDraft(): ProductDraft {
   return {
     name: "",
     description: "",
-    imageUrl: null,
+    imageUrls: [],
     productType: "simple",
     simple: {
       price: "",
@@ -61,7 +61,7 @@ export function createEmptyVariantRow(): VariantRow {
     stockQuantity: "",
     managedInventory: false,
     allowBackorder: false,
-    imageUrl: null,
+    imageUrls: [],
     channelPrices: [],
     expanded: true,
   };

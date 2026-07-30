@@ -129,8 +129,8 @@ export function VariantsTab() {
                   <div className="flex flex-col gap-2">
                     <Label>תמונת וריאציה</Label>
                     <ImageUploadField
-                      value={row.imageUrl}
-                      onChange={(imageUrl) => updateVariantRow(row.id, { imageUrl })}
+                      values={row.imageUrls}
+                      onChange={(imageUrls) => updateVariantRow(row.id, { imageUrls })}
                     />
                   </div>
 
