@@ -6,6 +6,7 @@ import { AttributeSelect } from "@/components/products/shared/AttributeSelect";
 import { ValuesMultiSelect } from "@/components/products/shared/ValuesMultiSelect";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
+import { toast } from "@/lib/toast-store";
 import { Trash2 } from "lucide-react";
 
 export function RegularAttributesTab() {
@@ -28,9 +29,14 @@ export function RegularAttributesTab() {
           attributes={availableAttributes}
           onSelect={addSimpleAttribute}
           onDeleteAttribute={(attributeId) =>
-            removeAttribute(attributeId).catch((error) =>
-              console.error("מחיקת התכונה נכשלה", error)
-            )
+            removeAttribute(attributeId)
+              .then(() => toast.success("התכונה נמחקה בהצלחה"))
+              .catch((error) =>
+                toast.error(
+                  "מחיקת התכונה נכשלה",
+                  error instanceof Error ? error.message : undefined
+                )
+              )
           }
         />
         <AddAttributeDialog
@@ -59,9 +65,14 @@ export function RegularAttributesTab() {
                   selectedValueIds={selection.valueIds}
                   onToggle={(valueId) => toggleSimpleAttributeValue(attribute.id, valueId)}
                   onDeleteValue={(valueId) =>
-                    removeAttributeValue(attribute.id, valueId).catch((error) =>
-                      console.error("מחיקת הערך נכשלה", error)
-                    )
+                    removeAttributeValue(attribute.id, valueId)
+                      .then(() => toast.success("הערך נמחק בהצלחה"))
+                      .catch((error) =>
+                        toast.error(
+                          "מחיקת הערך נכשלה",
+                          error instanceof Error ? error.message : undefined
+                        )
+                      )
                   }
                 />
                 <AddValueDialog

@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { ProductCreateView } from "@/components/products/ProductCreateView";
+import { ProductListSkeleton } from "@/components/products/ProductListSkeleton";
 import { ProductListView } from "@/components/products/ProductListView";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const view = useStore((state) => state.view);
@@ -26,12 +26,9 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
       {isLoading ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <Loader2 className="text-muted-foreground size-6 animate-spin" />
-          <p className="text-muted-foreground text-sm">טוען נתונים...</p>
-        </div>
+        <ProductListSkeleton />
       ) : hasError ? (
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-3 p-4 text-center sm:p-8">
           <p className="font-medium">טעינת הנתונים נכשלה</p>
           {lookupsError && <p className="text-muted-foreground text-sm">{lookupsError}</p>}
           {productsError && <p className="text-muted-foreground text-sm">{productsError}</p>}

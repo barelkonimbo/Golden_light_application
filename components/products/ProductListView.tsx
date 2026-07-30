@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useStore } from "@/lib/store";
+import { toast } from "@/lib/toast-store";
 import {
   PRODUCT_TYPE_LABELS,
   PUBLICATION_STATUS_LABELS,
@@ -85,7 +86,6 @@ export function ProductListView() {
   const startEditProduct = useStore((state) => state.startEditProduct);
   const deleteProduct = useStore((state) => state.deleteProduct);
   const deletingProductId = useStore((state) => state.deletingProductId);
-  const deleteError = useStore((state) => state.deleteError);
   const [query, setQuery] = useState(productsSearch);
   const [sortBy, setSortBy] = useState<SortOption>("date-desc");
 
@@ -129,10 +129,10 @@ export function ProductListView() {
   }, [products, sortBy]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6 md:p-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">מוצרים</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">מוצרים</h1>
           <p className="text-muted-foreground text-sm">
             {visibleProducts.length} מוצגים מתוך {productsTotal} מוצרים בקטלוג
           </p>
@@ -147,16 +147,14 @@ export function ProductListView() {
           >
             <RefreshCw className={isProductsLoading ? "animate-spin" : undefined} />
           </Button>
-          <Button onClick={startCreateProduct}>
+          <Button className="flex-1 sm:flex-none" onClick={startCreateProduct}>
             <Plus />
             הוספת מוצר חדש
           </Button>
         </div>
       </div>
 
-      {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
-
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
         <Input
           value={query}
@@ -182,7 +180,7 @@ export function ProductListView() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
         <Select
           value={categoryFilter}
           onValueChange={(value) =>
@@ -190,7 +188,7 @@ export function ProductListView() {
           }
           disabled={isProductsLoading}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -210,7 +208,7 @@ export function ProductListView() {
           }
           disabled={isProductsLoading}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -230,7 +228,7 @@ export function ProductListView() {
           }
           disabled={isProductsLoading}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -244,7 +242,7 @@ export function ProductListView() {
         </Select>
 
         <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-          <SelectTrigger className="w-56 sm:ms-auto">
+          <SelectTrigger className="w-full sm:ms-auto sm:w-56">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -257,102 +255,115 @@ export function ProductListView() {
         </Select>
       </div>
 
-      <Card className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="h-11 w-16 ps-6" />
-              <TableHead className="max-w-56">שם</TableHead>
-              <TableHead className="max-w-32">מק&quot;ט</TableHead>
-              <TableHead>מחיר</TableHead>
-              <TableHead className="max-w-48">קטגוריות</TableHead>
-              <TableHead>תאריך יצירה</TableHead>
-              <TableHead className="w-10 pe-6" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visibleProducts.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="ps-6">
-                  <div className="bg-muted flex size-10 items-center justify-center overflow-hidden rounded-md border">
-                    {product.imageUrls[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={product.imageUrls[0]}
-                        alt=""
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="text-muted-foreground size-4" />
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="max-w-56 font-medium">
-                  <button
-                    type="button"
-                    onClick={() => startEditProduct(product.id)}
-                    title={product.name}
-                    className="block max-w-full truncate text-start text-blue-600 underline decoration-blue-600/30 underline-offset-4 transition-colors hover:decoration-blue-600 dark:text-blue-400 dark:decoration-blue-400/30 dark:hover:decoration-blue-400"
-                  >
-                    {product.name}
-                  </button>
-                </TableCell>
-                <TableCell className="text-muted-foreground max-w-32 truncate" title={productSku(product) || undefined}>
-                  {productSku(product) || "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {productPriceLabel(product)}
-                </TableCell>
-                <TableCell className="text-muted-foreground max-w-48">
-                  {(() => {
-                    const names = categoryNames(product.organization.categoryIds);
-                    const label = names.length > 0 ? names.join(", ") : "—";
-                    return (
-                      <span className="block truncate" title={label}>
-                        {label}
-                      </span>
-                    );
-                  })()}
-                </TableCell>
-                <TableCell className="text-muted-foreground">{product.createdAt}</TableCell>
-                <TableCell className="pe-6">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="מחיקת מוצר"
-                        disabled={deletingProductId === product.id}
-                      >
-                        {deletingProductId === product.id ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Trash2 />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          האם למחוק את המוצר &quot;{product.name}&quot;? פעולה זו אינה ניתנת לביטול.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>ביטול</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteProduct(product.id).catch(() => {})}
-                        >
-                          מחיקה
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </TableCell>
+      <Card className="overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-11 w-16 ps-6" />
+                <TableHead className="max-w-56">שם</TableHead>
+                <TableHead className="max-w-32">מק&quot;ט</TableHead>
+                <TableHead>מחיר</TableHead>
+                <TableHead className="hidden max-w-48 md:table-cell">קטגוריות</TableHead>
+                <TableHead className="hidden md:table-cell">תאריך יצירה</TableHead>
+                <TableHead className="w-10 pe-6" />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {visibleProducts.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="ps-6">
+                    <div className="bg-muted flex size-10 items-center justify-center overflow-hidden rounded-md border">
+                      {product.imageUrls[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.imageUrls[0]}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="text-muted-foreground size-4" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-w-56 font-medium">
+                    <button
+                      type="button"
+                      onClick={() => startEditProduct(product.id)}
+                      title={product.name}
+                      className="block max-w-full truncate text-start text-blue-600 underline decoration-blue-600/30 underline-offset-4 transition-colors hover:decoration-blue-600 dark:text-blue-400 dark:decoration-blue-400/30 dark:hover:decoration-blue-400"
+                    >
+                      {product.name}
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-32 truncate" title={productSku(product) || undefined}>
+                    {productSku(product) || "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {productPriceLabel(product)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground hidden max-w-48 md:table-cell">
+                    {(() => {
+                      const names = categoryNames(product.organization.categoryIds);
+                      const label = names.length > 0 ? names.join(", ") : "—";
+                      return (
+                        <span className="block truncate" title={label}>
+                          {label}
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground hidden md:table-cell">
+                    {product.createdAt}
+                  </TableCell>
+                  <TableCell className="pe-6">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="מחיקת מוצר"
+                          disabled={deletingProductId === product.id}
+                        >
+                          {deletingProductId === product.id ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Trash2 />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>מחיקת מוצר</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            האם למחוק את המוצר &quot;{product.name}&quot;? פעולה זו אינה ניתנת לביטול.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>ביטול</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              deleteProduct(product.id)
+                                .then(() => toast.success("המוצר נמחק בהצלחה"))
+                                .catch((error) =>
+                                  toast.error(
+                                    "מחיקת המוצר נכשלה",
+                                    error instanceof Error ? error.message : undefined
+                                  )
+                                )
+                            }
+                          >
+                            מחיקה
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-4" dir="rtl">

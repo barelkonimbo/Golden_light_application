@@ -11,26 +11,26 @@ import { Building2, LayoutGrid, Tags, Truck, Wrench } from "lucide-react";
 export function RegularProductData() {
   return (
     <Tabs defaultValue="general" orientation="vertical">
-      <TabsList className="w-44 shrink-0 gap-1 border-e bg-transparent p-0 pe-4">
-        <TabsTrigger value="general">
+      <TabsList className="w-12 shrink-0 gap-1 border-e bg-transparent p-0 pe-2 sm:w-44 sm:pe-4">
+        <TabsTrigger value="general" title="כללי">
           <Wrench />
-          כללי
+          <span className="hidden sm:inline">כללי</span>
         </TabsTrigger>
-        <TabsTrigger value="inventory">
+        <TabsTrigger value="inventory" title="מלאי">
           <Tags />
-          מלאי
+          <span className="hidden sm:inline">מלאי</span>
         </TabsTrigger>
-        <TabsTrigger value="organization">
+        <TabsTrigger value="organization" title="ארגון">
           <Building2 />
-          ארגון
+          <span className="hidden sm:inline">ארגון</span>
         </TabsTrigger>
-        <TabsTrigger value="shipping">
+        <TabsTrigger value="shipping" title="משלוח">
           <Truck />
-          משלוח
+          <span className="hidden sm:inline">משלוח</span>
         </TabsTrigger>
-        <TabsTrigger value="attributes">
+        <TabsTrigger value="attributes" title="תכונות">
           <LayoutGrid />
-          תכונות
+          <span className="hidden sm:inline">תכונות</span>
         </TabsTrigger>
       </TabsList>
       <TabsContent value="general" className="ps-6">

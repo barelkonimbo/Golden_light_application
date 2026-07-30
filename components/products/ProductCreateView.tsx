@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
+import { toast } from "@/lib/toast-store";
 import { ArrowRight } from "lucide-react";
 
 export function ProductCreateView() {
@@ -25,7 +26,6 @@ export function ProductCreateView() {
   const saveDraft = useStore((state) => state.saveDraft);
   const editingProductId = useStore((state) => state.editingProductId);
   const isSaving = useStore((state) => state.isSaving);
-  const saveError = useStore((state) => state.saveError);
   const saveAttempted = useStore((state) => state.saveAttempted);
   const [nameTouched, setNameTouched] = useState(false);
 
@@ -33,33 +33,42 @@ export function ProductCreateView() {
   const showNameError = (nameTouched || saveAttempted) && !name.trim();
 
   function handleSave() {
-    saveDraft().catch(() => {});
+    saveDraft()
+      .then(() => {
+        toast.success(isEditing ? "המוצר עודכן בהצלחה" : "המוצר נוסף בהצלחה");
+      })
+      .catch((error) => {
+        toast.error(
+          isEditing ? "עדכון המוצר נכשל" : "הוספת המוצר נכשלה",
+          error instanceof Error ? error.message : undefined
+        );
+      });
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-8">
-      <div className="sticky top-0 z-10 -mx-8 flex items-center justify-between border-b bg-zinc-50/95 px-8 py-4 backdrop-blur-sm dark:bg-black/95">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 md:p-8">
+      <div className="sticky top-0 z-10 -mx-4 flex flex-col gap-3 border-b bg-zinc-50/95 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:-mx-8 md:px-8 dark:bg-black/95">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => setView("list")}>
             <ArrowRight />
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             {isEditing ? "עדכון מוצר" : "הוספת מוצר חדש"}
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setView("list")}>
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setView("list")}>
             ביטול
           </Button>
-          <Button onClick={handleSave} disabled={!name.trim() || isSaving}>
+          <Button
+            className="flex-1 sm:flex-none"
+            onClick={handleSave}
+            disabled={!name.trim() || isSaving}
+          >
             {isSaving ? "שומר..." : isEditing ? "עדכון מוצר" : "שמירת מוצר"}
           </Button>
         </div>
       </div>
-
-      {saveError && (
-        <p className="text-destructive text-sm whitespace-pre-line">{saveError}</p>
-      )}
 
       <Card>
         <CardContent className="flex flex-col gap-5">

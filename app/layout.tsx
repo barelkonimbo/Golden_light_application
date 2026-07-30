@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Heebo } from "next/font/google";
 import { DirectionProvider } from "@/components/ui/direction";
+import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -21,7 +22,12 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <DirectionProvider dir="rtl">{children}</DirectionProvider>
+        <DirectionProvider dir="rtl">
+          <div className="relative flex min-h-full flex-1 flex-col">
+            {children}
+            <Toaster />
+          </div>
+        </DirectionProvider>
       </body>
     </html>
   );

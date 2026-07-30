@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useStore } from "@/lib/store";
+import { toast } from "@/lib/toast-store";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 export function VariantAttributesTab() {
@@ -44,9 +45,14 @@ export function VariantAttributesTab() {
           attributes={availableAttributes}
           onSelect={addVariantAttribute}
           onDeleteAttribute={(attributeId) =>
-            removeAttribute(attributeId).catch((error) =>
-              console.error("מחיקת התכונה נכשלה", error)
-            )
+            removeAttribute(attributeId)
+              .then(() => toast.success("התכונה נמחקה בהצלחה"))
+              .catch((error) =>
+                toast.error(
+                  "מחיקת התכונה נכשלה",
+                  error instanceof Error ? error.message : undefined
+                )
+              )
           }
         />
         <AddAttributeDialog
@@ -100,9 +106,14 @@ export function VariantAttributesTab() {
                         selectedValueIds={selection.selectedValueIds}
                         onToggle={(valueId) => toggleVariantAttributeValue(attribute.id, valueId)}
                         onDeleteValue={(valueId) =>
-                          removeAttributeValue(attribute.id, valueId).catch((error) =>
-                            console.error("מחיקת הערך נכשלה", error)
-                          )
+                          removeAttributeValue(attribute.id, valueId)
+                            .then(() => toast.success("הערך נמחק בהצלחה"))
+                            .catch((error) =>
+                              toast.error(
+                                "מחיקת הערך נכשלה",
+                                error instanceof Error ? error.message : undefined
+                              )
+                            )
                         }
                       />
                       <AddValueDialog
