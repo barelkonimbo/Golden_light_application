@@ -67,6 +67,12 @@ function sortPrice(product: Product): number {
 
 export function ProductListView() {
   const products = useStore((state) => state.products);
+  const productsStatus = useStore((state) => state.productsStatus);
+  const productsPage = useStore((state) => state.productsPage);
+  const productsPageSize = useStore((state) => state.productsPageSize);
+  const productsTotal = useStore((state) => state.productsTotal);
+  const setProductsPage = useStore((state) => state.setProductsPage);
+  const setProductsPageSize = useStore((state) => state.setProductsPageSize);
   const categories = useStore((state) => state.categories);
   const tags = useStore((state) => state.tags);
   const startCreateProduct = useStore((state) => state.startCreateProduct);
@@ -78,6 +84,9 @@ export function ProductListView() {
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [sortBy, setSortBy] = useState<SortOption>("date-desc");
+
+  const totalPages = Math.max(1, Math.ceil(productsTotal / productsPageSize));
+  const isProductsLoading = productsStatus === "loading";
 
   function categoryNames(categoryIds: string[]) {
     return categoryIds
@@ -146,7 +155,7 @@ export function ProductListView() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">מוצרים</h1>
           <p className="text-muted-foreground text-sm">
-            {visibleProducts.length} מתוך {products.length} מוצרים בקטלוג
+            {visibleProducts.length} מוצגים מתוך {productsTotal} מוצרים בקטלוג
           </p>
         </div>
         <Button onClick={startCreateProduct}>
@@ -301,6 +310,86 @@ export function ProductListView() {
           </TableBody>
         </Table>
       </Card>
+
+      <div className="flex flex-wrap items-center justify-between gap-4" dir="rtl">
+        <div className="flex items-center gap-2 text-sm">
+          <span>הצג</span>
+          <Select
+            value={String(productsPageSize)}
+            onValueChange={(value) => void setProductsPageSize(Number(value))}
+            disabled={isProductsLoading}
+          >
+            <SelectTrigger
+              className="h-9 w-24"
+              aria-label="מספר מוצרים בעמוד"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+          <span>מוצרים בעמוד</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void setProductsPage(productsPage - 1)}
+            disabled={isProductsLoading || productsPage <= 1}
+          >
+            הקודם
+          </Button>
+
+          <span className="min-w-28 text-center text-sm">
+            עמוד {productsPage} מתוך {totalPages}
+          </span>
+
+          <div className="flex items-center gap-2 text-sm">
+            <span>מעבר לעמוד</span>
+            <Select
+              value={String(productsPage)}
+              onValueChange={(value) => void setProductsPage(Number(value))}
+              disabled={isProductsLoading || productsTotal === 0}
+            >
+              <SelectTrigger
+                className="h-9 w-20"
+                aria-label="מעבר לעמוד"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (pageNumber) => (
+                    <SelectItem
+                      key={pageNumber}
+                      value={String(pageNumber)}
+                    >
+                      {pageNumber}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void setProductsPage(productsPage + 1)}
+            disabled={
+              isProductsLoading ||
+              productsPage >= totalPages ||
+              productsTotal === 0
+            }
+          >
+            הבא
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

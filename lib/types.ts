@@ -126,6 +126,11 @@ export interface Product extends ProductDraft {
   createdAt: string;
 }
 
+export interface PaginatedProductsResponse {
+  items: Product[];
+  total: number;
+}
+
 export function productSku(product: ProductDraft): string {
   return product.productType === "simple" ? product.simple.sku : product.variant.sku;
 }

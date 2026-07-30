@@ -17,6 +17,7 @@ import {
   Attribute,
   AttributeValue,
   Product,
+  PaginatedProductsResponse,
   ProductCategory,
   ProductCollection,
   ProductDraft,
@@ -44,6 +45,7 @@ interface ApiErrorResponse {
   details?: unknown;
   upstreamStatus?: number;
 }
+
 
 /**
  * Calls a Windmill flow through the Next.js server-side proxy.
@@ -186,8 +188,14 @@ export const deleteAttributeValue = (
 // Products
 // -----------------------------------------------------------------------------
 
-export const listProducts = (): Promise<Product[]> =>
-  callFlow<Product[]>("listProducts");
+export const listProducts = (
+  page = 1,
+  limit = 25
+): Promise<PaginatedProductsResponse> =>
+  callFlow<PaginatedProductsResponse>("listProducts", {
+    page,
+    limit,
+  });
 
 export const createProduct = (
   draft: ProductDraft

@@ -59,6 +59,9 @@ interface StoreState {
   products: Product[];
   productsStatus: FetchStatus;
   productsError: string | null;
+  productsPage: number;
+  productsPageSize: number;
+  productsTotal: number;
 
   draft: ProductDraft;
   editingProductId: string | null;
@@ -68,6 +71,9 @@ interface StoreState {
   deleteError: string | null;
 
   hydrate: () => Promise<void>;
+  fetchProducts: (page?: number, limit?: number) => Promise<void>;
+  setProductsPage: (page: number) => Promise<void>;
+  setProductsPageSize: (pageSize: number) => Promise<void>;
 
   setView: (view: View) => void;
   startCreateProduct: () => void;
@@ -152,6 +158,9 @@ export const useStore = create<StoreState>()(
     products: [],
     productsStatus: "idle",
     productsError: null,
+    productsPage: 1,
+    productsPageSize: 25,
+    productsTotal: 0,
 
     draft: createInitialDraft(),
     editingProductId: null,
@@ -161,6 +170,8 @@ export const useStore = create<StoreState>()(
     deleteError: null,
 
     hydrate: async () => {
+      const { productsPage, productsPageSize } = get();
+
       set((state) => {
         state.lookupsStatus = "loading";
         state.lookupsError = null;
@@ -180,7 +191,7 @@ export const useStore = create<StoreState>()(
           listTags(),
           listWarehouses(),
         ]),
-        listProducts(),
+        listProducts(productsPage, productsPageSize),
       ]);
 
       set((state) => {
@@ -203,13 +214,50 @@ export const useStore = create<StoreState>()(
         }
 
         if (productsResult.status === "fulfilled") {
-          state.products = productsResult.value;
+          state.products = productsResult.value.items;
+          state.productsTotal = productsResult.value.total;
           state.productsStatus = "ready";
         } else {
           state.productsStatus = "error";
           state.productsError = errorMessage(productsResult.reason);
         }
       });
+    },
+
+    fetchProducts: async (page = get().productsPage, limit = get().productsPageSize) => {
+      const safePage = Math.max(1, Math.floor(page));
+      const safeLimit = Math.max(1, Math.floor(limit));
+
+      set((state) => {
+        state.productsPage = safePage;
+        state.productsPageSize = safeLimit;
+        state.productsStatus = "loading";
+        state.productsError = null;
+      });
+
+      try {
+        const result = await listProducts(safePage, safeLimit);
+
+        set((state) => {
+          state.products = result.items;
+          state.productsTotal = result.total;
+          state.productsStatus = "ready";
+        });
+      } catch (error) {
+        set((state) => {
+          state.productsStatus = "error";
+          state.productsError = errorMessage(error);
+        });
+        throw error;
+      }
+    },
+
+    setProductsPage: async (page) => {
+      await get().fetchProducts(page, get().productsPageSize);
+    },
+
+    setProductsPageSize: async (pageSize) => {
+      await get().fetchProducts(1, pageSize);
     },
 
     setView: (view) =>
@@ -256,6 +304,7 @@ export const useStore = create<StoreState>()(
         await apiDeleteProduct(productId);
         set((state) => {
           state.products = state.products.filter((product) => product.id !== productId);
+          state.productsTotal = Math.max(0, state.productsTotal - 1);
           state.deletingProductId = null;
         });
       } catch (error) {
@@ -538,8 +587,13 @@ export const useStore = create<StoreState>()(
 
         set((state) => {
           const index = state.products.findIndex((product) => product.id === saved.id);
-          if (index >= 0) state.products[index] = saved;
-          else state.products.unshift(saved);
+          if (index >= 0) {
+            state.products[index] = saved;
+          } else {
+            state.products.unshift(saved);
+            state.products = state.products.slice(0, state.productsPageSize);
+            state.productsTotal += 1;
+          }
 
           state.draft = createInitialDraft();
           state.editingProductId = null;
