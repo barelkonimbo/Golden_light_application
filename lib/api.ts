@@ -46,6 +46,64 @@ interface ApiErrorResponse {
   upstreamStatus?: number;
 }
 
+/**
+ * Thrown by callFlow() for any failure talking to the Windmill proxy
+ * (network failure, non-OK response, invalid JSON). Carries the raw
+ * technical detail for logging, but is recognized by lib/errors.ts's
+ * toFriendlyMessage() so the UI never surfaces it directly to the client.
+ */
+export class ApiError extends Error {
+  kind: "network" | "http";
+  /** The upstream error text (Windmill/Medusa), as clean as it could be
+   *  extracted - never shown to the client directly, only pattern-matched by
+   *  lib/errors.ts's toFriendlyMessage() to recognize known validation
+   *  failures (duplicate SKU, invalid handle, etc.) worth telling the
+   *  merchant about specifically. */
+  detail: string;
+
+  constructor(kind: "network" | "http", message: string, detail = "") {
+    super(message);
+    this.name = "ApiError";
+    this.kind = kind;
+    this.detail = detail;
+  }
+}
+
+/**
+ * Windmill wraps a failed flow's error as `{name, stack, message, step_id}`,
+ * and the flow itself often further wraps a raw upstream HTTP failure as
+ * `"<label>: <status> <json>"` inside that `message` (e.g. `RMS batch create
+ * failed: 400 {"type":"invalid_data","message":"..."}`). This digs through
+ * both wrapping layers to find the innermost human-readable message, falling
+ * back to whatever text it did manage to extract.
+ */
+function extractDetailMessage(details: unknown): string {
+  let text: string;
+
+  if (typeof details === "string") {
+    text = details;
+  } else if (details && typeof details === "object") {
+    const asRecord = details as Record<string, unknown>;
+    text =
+      (typeof asRecord.message === "string" && asRecord.message) ||
+      (typeof asRecord.error === "string" && asRecord.error) ||
+      JSON.stringify(details);
+  } else {
+    text = String(details);
+  }
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const inner = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      if (typeof inner.message === "string") return inner.message;
+    } catch {
+      // The embedded braces weren't valid JSON - fall through to the raw text.
+    }
+  }
+
+  return text;
+}
 
 /**
  * Calls a Windmill flow through the Next.js server-side proxy.
@@ -54,34 +112,46 @@ async function callFlow<T>(
   flow: FlowName,
   payload: unknown = {}
 ): Promise<T> {
-  const response = await fetch(FLOW_URLS[flow], {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(FLOW_URLS[flow], {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new ApiError(
+      "network",
+      `Flow "${flow}" could not be reached: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 
   const responseText = await response.text();
 
   if (!response.ok) {
     let errorMessage = responseText;
+    let detail = "";
 
     try {
       const parsed = JSON.parse(responseText) as ApiErrorResponse;
 
-      errorMessage =
-        parsed.error ??
-        (typeof parsed.details === "string"
-          ? parsed.details
-          : JSON.stringify(parsed.details ?? parsed));
+      detail = extractDetailMessage(parsed.details ?? parsed.error ?? parsed);
+      errorMessage = parsed.error ?? detail;
     } catch {
       // The upstream response was not JSON.
+      detail = responseText;
     }
 
-    throw new Error(
-      `Flow "${flow}" failed with status ${response.status}: ${errorMessage}`
+    throw new ApiError(
+      "http",
+      `Flow "${flow}" failed with status ${response.status}: ${errorMessage}`,
+      detail
     );
   }
 
@@ -92,7 +162,8 @@ async function callFlow<T>(
   try {
     return JSON.parse(responseText) as T;
   } catch {
-    throw new Error(
+    throw new ApiError(
+      "http",
       `Flow "${flow}" returned an invalid JSON response: ${responseText.slice(
         0,
         500
@@ -244,14 +315,14 @@ function fileToBase64(file: File): Promise<string> {
 
     reader.onload = () => {
       if (typeof reader.result !== "string") {
-        reject(new Error("The selected file could not be converted to Base64."));
+        reject(new Error("לא ניתן היה לעבד את הקובץ שנבחר."));
         return;
       }
 
       const commaIndex = reader.result.indexOf(",");
 
       if (commaIndex === -1) {
-        reject(new Error("The generated Base64 data URL is invalid."));
+        reject(new Error("לא ניתן היה לעבד את הקובץ שנבחר."));
         return;
       }
 
@@ -259,7 +330,7 @@ function fileToBase64(file: File): Promise<string> {
     };
 
     reader.onerror = () => {
-      reject(reader.error ?? new Error("The selected file could not be read."));
+      reject(new Error("קריאת הקובץ שנבחר נכשלה."));
     };
 
     reader.readAsDataURL(file);
@@ -268,11 +339,11 @@ function fileToBase64(file: File): Promise<string> {
 
 export async function uploadProductImage(file: File): Promise<string> {
   if (!file) {
-    throw new Error("No image file was selected.");
+    throw new Error("לא נבחר קובץ תמונה.");
   }
 
   if (!file.type.startsWith("image/")) {
-    throw new Error("The selected file is not an image.");
+    throw new Error("הקובץ שנבחר אינו תמונה.");
   }
 
   const dataBase64 = await fileToBase64(file);
@@ -284,7 +355,7 @@ export async function uploadProductImage(file: File): Promise<string> {
   });
 
   if (!result?.url) {
-    throw new Error("The upload flow did not return an image URL.");
+    throw new Error("העלאת התמונה לא החזירה כתובת תמונה תקינה.");
   }
 
   return result.url;

@@ -7,6 +7,7 @@ import { ValuesMultiSelect } from "@/components/products/shared/ValuesMultiSelec
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { toast } from "@/lib/toast-store";
+import { toFriendlyMessage } from "@/lib/errors";
 import { Trash2 } from "lucide-react";
 
 export function RegularAttributesTab() {
@@ -34,7 +35,7 @@ export function RegularAttributesTab() {
               .catch((error) =>
                 toast.error(
                   "מחיקת התכונה נכשלה",
-                  error instanceof Error ? error.message : undefined
+                  toFriendlyMessage(error)
                 )
               )
           }
@@ -70,7 +71,7 @@ export function RegularAttributesTab() {
                       .catch((error) =>
                         toast.error(
                           "מחיקת הערך נכשלה",
-                          error instanceof Error ? error.message : undefined
+                          toFriendlyMessage(error)
                         )
                       )
                   }

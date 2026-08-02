@@ -137,6 +137,28 @@ export function VariantsTab() {
                     />
                   </div>
 
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor={`title-${row.id}`}>שם הוריאציה</Label>
+                    <Input
+                      id={`title-${row.id}`}
+                      value={row.title ?? ""}
+                      placeholder={
+                        Object.entries(row.optionValues)
+                          .map(([attributeId, valueId]) => {
+                            const attribute = variantAttributes.find(
+                              (entry) => entry.attribute.id === attributeId
+                            )?.attribute;
+                            return attribute?.values.find((value) => value.id === valueId)?.value;
+                          })
+                          .filter(Boolean)
+                          .join(" / ") ||
+                        row.sku ||
+                        "Variant"
+                      }
+                      onChange={(event) => updateVariantRow(row.id, { title: event.target.value })}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor={`sku-${row.id}`}>מק&quot;ט</Label>
@@ -165,6 +187,18 @@ export function VariantsTab() {
                         value={row.stockQuantity}
                         onChange={(event) =>
                           updateVariantRow(row.id, { stockQuantity: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={`package-amount-${row.id}`}>כמות באריזה</Label>
+                      <Input
+                        id={`package-amount-${row.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        value={row.packageAmount}
+                        onChange={(event) =>
+                          updateVariantRow(row.id, { packageAmount: event.target.value })
                         }
                       />
                     </div>

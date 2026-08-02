@@ -10,17 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
 import { toast } from "@/lib/toast-store";
+import { toFriendlyMessage } from "@/lib/errors";
 import { ArrowRight } from "lucide-react";
 
 export function ProductCreateView() {
   const name = useStore((state) => state.draft.name);
   const description = useStore((state) => state.draft.description);
   const imageUrls = useStore((state) => state.draft.imageUrls);
+  const thumbnailUrl = useStore((state) => state.draft.thumbnailUrl);
   const productType = useStore((state) => state.draft.productType);
   const handle = useStore((state) => state.draft.variant.handle);
   const setName = useStore((state) => state.setName);
   const setDescription = useStore((state) => state.setDescription);
   const setProductImages = useStore((state) => state.setProductImages);
+  const setThumbnail = useStore((state) => state.setThumbnail);
   const setVariantHandle = useStore((state) => state.setVariantHandle);
   const setView = useStore((state) => state.setView);
   const saveDraft = useStore((state) => state.saveDraft);
@@ -36,11 +39,12 @@ export function ProductCreateView() {
     saveDraft()
       .then(() => {
         toast.success(isEditing ? "המוצר עודכן בהצלחה" : "המוצר נוסף בהצלחה");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       })
       .catch((error) => {
         toast.error(
           isEditing ? "עדכון המוצר נכשל" : "הוספת המוצר נכשלה",
-          error instanceof Error ? error.message : undefined
+          toFriendlyMessage(error)
         );
       });
   }
@@ -74,7 +78,17 @@ export function ProductCreateView() {
         <CardContent className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <Label>תמונת מוצר</Label>
-            <ImageUploadField values={imageUrls} onChange={setProductImages} />
+            <ImageUploadField
+              values={imageUrls}
+              onChange={setProductImages}
+              thumbnailUrl={thumbnailUrl}
+              onThumbnailChange={setThumbnail}
+            />
+            {imageUrls.length > 1 && (
+              <p className="text-muted-foreground text-sm">
+                יש ללחוץ על סמל הכוכב בתמונה כדי לקבוע אותה כתמונה הראשית של המוצר.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

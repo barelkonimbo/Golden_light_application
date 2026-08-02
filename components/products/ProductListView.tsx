@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { useStore } from "@/lib/store";
 import { toast } from "@/lib/toast-store";
+import { toFriendlyMessage } from "@/lib/errors";
 import {
   PRODUCT_TYPE_LABELS,
   PUBLICATION_STATUS_LABELS,
@@ -274,10 +275,10 @@ export function ProductListView() {
                 <TableRow key={product.id}>
                   <TableCell className="ps-6">
                     <div className="bg-muted flex size-10 items-center justify-center overflow-hidden rounded-md border">
-                      {product.imageUrls[0] ? (
+                      {product.thumbnailUrl || product.imageUrls[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={product.imageUrls[0]}
+                          src={product.thumbnailUrl || product.imageUrls[0]}
                           alt=""
                           className="size-full object-cover"
                         />
@@ -348,7 +349,7 @@ export function ProductListView() {
                                 .catch((error) =>
                                   toast.error(
                                     "מחיקת המוצר נכשלה",
-                                    error instanceof Error ? error.message : undefined
+                                    toFriendlyMessage(error)
                                   )
                                 )
                             }

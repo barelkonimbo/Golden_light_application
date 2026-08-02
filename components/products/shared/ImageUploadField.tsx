@@ -2,16 +2,24 @@
 
 import { useRef, useState } from "react";
 import { uploadProductImage } from "@/lib/api";
+import { toFriendlyMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ImageIcon, Loader2, Upload, X } from "lucide-react";
+import { ImageIcon, Loader2, Star, Upload, X } from "lucide-react";
 
 export function ImageUploadField({
   values,
   onChange,
+  thumbnailUrl,
+  onThumbnailChange,
 }: {
   values: string[];
   onChange: (urls: string[]) => void;
+  /** When provided (together with onThumbnailChange), each image tile gets a
+   *  "set as main image" toggle. Omit for image fields where picking a main
+   *  image doesn't apply (e.g. a variant row's own images). */
+  thumbnailUrl?: string | null;
+  onThumbnailChange?: (url: string | null) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -33,7 +41,7 @@ export function ImageUploadField({
         onChange(current);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "העלאת התמונה נכשלה");
+      setError(toFriendlyMessage(err));
     } finally {
       setIsUploading(false);
     }
@@ -53,23 +61,41 @@ export function ImageUploadField({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        {values.map((url, index) => (
-          <div
-            key={`${url}-${index}`}
-            className="bg-muted group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="size-full object-cover" />
-            <button
-              type="button"
-              onClick={() => handleRemove(index)}
-              aria-label="הסרת תמונה"
-              className="bg-background/80 absolute top-1 right-1 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+        {values.map((url, index) => {
+          const isThumbnail = onThumbnailChange && (thumbnailUrl ? thumbnailUrl === url : index === 0);
+          return (
+            <div
+              key={`${url}-${index}`}
+              className="bg-muted group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border"
             >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        ))}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="size-full object-cover" />
+              {onThumbnailChange && (
+                <button
+                  type="button"
+                  onClick={() => onThumbnailChange(isThumbnail ? null : url)}
+                  aria-label={isThumbnail ? "תמונה ראשית" : "הפיכה לתמונה ראשית"}
+                  title={isThumbnail ? "תמונה ראשית" : "הפיכה לתמונה ראשית"}
+                  className={`absolute bottom-1 left-1 rounded-full p-0.5 transition-opacity ${
+                    isThumbnail
+                      ? "bg-background/80 opacity-100"
+                      : "bg-background/80 opacity-0 group-hover:opacity-100"
+                  }`}
+                >
+                  <Star className={`size-3.5 ${isThumbnail ? "fill-current" : ""}`} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                aria-label="הסרת תמונה"
+                className="bg-background/80 absolute top-1 right-1 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          );
+        })}
         {isUploading && (
           <div className="bg-muted flex size-20 shrink-0 items-center justify-center rounded-lg border">
             <Loader2 className="text-muted-foreground size-5 animate-spin" />

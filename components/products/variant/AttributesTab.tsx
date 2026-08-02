@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useStore } from "@/lib/store";
 import { toast } from "@/lib/toast-store";
+import { toFriendlyMessage } from "@/lib/errors";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 export function VariantAttributesTab() {
@@ -50,7 +51,7 @@ export function VariantAttributesTab() {
               .catch((error) =>
                 toast.error(
                   "מחיקת התכונה נכשלה",
-                  error instanceof Error ? error.message : undefined
+                  toFriendlyMessage(error)
                 )
               )
           }
@@ -111,7 +112,7 @@ export function VariantAttributesTab() {
                             .catch((error) =>
                               toast.error(
                                 "מחיקת הערך נכשלה",
-                                error instanceof Error ? error.message : undefined
+                                toFriendlyMessage(error)
                               )
                             )
                         }

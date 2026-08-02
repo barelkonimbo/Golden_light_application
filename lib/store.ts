@@ -21,6 +21,7 @@ import {
   updateProduct as apiUpdateProduct,
 } from "./api";
 import { createEmptyVariantRow, createInitialDraft, validateDraft } from "./draft";
+import { toFriendlyMessage } from "./errors";
 import {
   Attribute,
   ChannelPrice,
@@ -108,6 +109,7 @@ interface StoreState {
   setName: (name: string) => void;
   setDescription: (description: string) => void;
   setProductImages: (imageUrls: string[]) => void;
+  setThumbnail: (url: string | null) => void;
   setProductType: (productType: ProductType) => void;
 
   setSimpleField: (field: "price" | "sku" | "stockQuantity" | "packageAmount", value: string) => void;
@@ -124,7 +126,6 @@ interface StoreState {
   resetSimpleChannelPrice: (channelId: string) => void;
 
   setVariantHandle: (handle: string) => void;
-  setVariantPackageAmount: (packageAmount: string) => void;
   setVariantDimension: (field: keyof Dimensions, value: string) => void;
   setVariantShipmentType: (shipmentTypeId: string | null) => void;
   setVariantWarehouse: (warehouseId: string | null) => void;
@@ -194,7 +195,7 @@ function syncChannelPricesToPrice(list: ChannelPrice[], channelIds: string[], pr
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "אירעה שגיאה לא צפויה";
+  return toFriendlyMessage(error);
 }
 
 // Guards against an older in-flight fetchProducts() call resolving after a
@@ -379,14 +380,30 @@ export const useStore = create<StoreState>()(
         // product until saveDraft() runs (an Immer draft proxy can't be reused
         // across two paths in the state tree safely).
         const clone: Product = JSON.parse(JSON.stringify(product));
+        // Merged over fresh defaults rather than used as-is: a product fetched
+        // from a flow that predates a given field (e.g. before a variant row
+        // gained `packageAmount`) would otherwise leave that field
+        // `undefined` and crash whatever tab reads it directly.
+        const defaults = createInitialDraft();
         state.draft = {
-          name: clone.name,
-          description: clone.description,
-          imageUrls: clone.imageUrls,
-          productType: clone.productType,
-          simple: clone.simple,
-          variant: clone.variant,
-          organization: clone.organization,
+          name: clone.name ?? defaults.name,
+          description: clone.description ?? defaults.description,
+          imageUrls: clone.imageUrls ?? defaults.imageUrls,
+          thumbnailUrl: clone.thumbnailUrl ?? defaults.thumbnailUrl,
+          productType: clone.productType ?? defaults.productType,
+          simple: {
+            ...defaults.simple,
+            ...clone.simple,
+          },
+          variant: {
+            ...defaults.variant,
+            ...clone.variant,
+            variants: (clone.variant?.variants ?? []).map((row) => ({
+              ...createEmptyVariantRow(),
+              ...row,
+            })),
+          },
+          organization: { ...defaults.organization, ...clone.organization },
         };
         state.editingProductId = productId;
         state.saveError = null;
@@ -488,6 +505,14 @@ export const useStore = create<StoreState>()(
     setProductImages: (imageUrls) =>
       set((state) => {
         state.draft.imageUrls = imageUrls;
+        if (state.draft.thumbnailUrl && !imageUrls.includes(state.draft.thumbnailUrl)) {
+          state.draft.thumbnailUrl = null;
+        }
+      }),
+
+    setThumbnail: (url) =>
+      set((state) => {
+        state.draft.thumbnailUrl = url;
       }),
 
     setProductType: (productType) =>
@@ -550,13 +575,13 @@ export const useStore = create<StoreState>()(
         );
       }),
 
+    // A regular product has no variants, so every attribute holds exactly
+    // one value - selecting a new one replaces whatever was selected before.
     toggleSimpleAttributeValue: (attributeId, valueId) =>
       set((state) => {
         const entry = state.draft.simple.attributes.find((a) => a.attributeId === attributeId);
         if (!entry) return;
-        entry.valueIds = entry.valueIds.includes(valueId)
-          ? entry.valueIds.filter((id) => id !== valueId)
-          : [...entry.valueIds, valueId];
+        entry.valueIds = entry.valueIds.includes(valueId) ? [] : [valueId];
       }),
 
     setSimpleChannelPrice: (channelId, price) =>
@@ -572,11 +597,6 @@ export const useStore = create<StoreState>()(
     setVariantHandle: (handle) =>
       set((state) => {
         state.draft.variant.handle = handle;
-      }),
-
-    setVariantPackageAmount: (packageAmount) =>
-      set((state) => {
-        state.draft.variant.packageAmount = packageAmount;
       }),
 
     setVariantDimension: (field, value) =>
@@ -611,19 +631,30 @@ export const useStore = create<StoreState>()(
         );
       }),
 
+    // An attribute not marked "meant for variants" is a shared spec value
+    // (e.g. "Structure: Aluminum") and only ever holds one value; one marked
+    // for variants drives the actual variant options and needs several.
     toggleVariantAttributeValue: (attributeId, valueId) =>
       set((state) => {
         const entry = state.draft.variant.attributes.find((a) => a.attributeId === attributeId);
         if (!entry) return;
-        entry.selectedValueIds = entry.selectedValueIds.includes(valueId)
-          ? entry.selectedValueIds.filter((id) => id !== valueId)
-          : [...entry.selectedValueIds, valueId];
+        if (entry.selectedValueIds.includes(valueId)) {
+          entry.selectedValueIds = entry.selectedValueIds.filter((id) => id !== valueId);
+        } else if (entry.meantForVariants) {
+          entry.selectedValueIds = [...entry.selectedValueIds, valueId];
+        } else {
+          entry.selectedValueIds = [valueId];
+        }
       }),
 
     setVariantAttributeMeantForVariants: (attributeId, meantForVariants) =>
       set((state) => {
         const entry = state.draft.variant.attributes.find((a) => a.attributeId === attributeId);
-        if (entry) entry.meantForVariants = meantForVariants;
+        if (!entry) return;
+        entry.meantForVariants = meantForVariants;
+        if (!meantForVariants && entry.selectedValueIds.length > 1) {
+          entry.selectedValueIds = entry.selectedValueIds.slice(0, 1);
+        }
       }),
 
     addVariantRow: () =>

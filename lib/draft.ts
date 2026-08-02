@@ -5,6 +5,7 @@ export function createInitialDraft(): ProductDraft {
     name: "",
     description: "",
     imageUrls: [],
+    thumbnailUrl: null,
     productType: "simple",
     simple: {
       price: "",
@@ -25,7 +26,6 @@ export function createInitialDraft(): ProductDraft {
     },
     variant: {
       handle: "",
-      packageAmount: "",
       warehouseId: null,
       weight: "",
       length: "",
@@ -55,10 +55,12 @@ export function createEmptyVariantRow(): VariantRow {
   return {
     id: generateId("variant"),
     sku: "",
+    title: "",
     optionValues: {},
     status: "draft",
     price: "",
     stockQuantity: "",
+    packageAmount: "",
     managedInventory: false,
     allowBackorder: false,
     imageUrls: [],

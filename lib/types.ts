@@ -82,11 +82,15 @@ export interface StockHandling {
 export interface VariantRow extends StockHandling {
   id: string;
   sku: string;
+  /** Optional override for this variant's Medusa title. Falls back to the
+   *  auto-generated join of its option values when blank. */
+  title?: string;
   /** attributeId -> valueId. An attribute flagged for variants may still be unset until chosen. */
   optionValues: Record<string, string>;
   status: PublicationStatus;
   price: string;
   stockQuantity: string;
+  packageAmount: string;
   channelPrices: ChannelPrice[];
   imageUrls: string[];
   expanded: boolean;
@@ -108,7 +112,6 @@ export interface VariantProductData extends Dimensions {
   /** The parent product's Medusa `handle` - a product with variants has no
    *  product-level SKU (each variant has its own), only a handle. */
   handle: string;
-  packageAmount: string;
   warehouseId: string | null;
   shipmentTypeId: string | null;
   attributes: VariantAttributeSelection[];
@@ -129,6 +132,10 @@ export interface ProductDraft {
   name: string;
   description: string;
   imageUrls: string[];
+  /** Which of `imageUrls` is the product's main/thumbnail image. `null` falls
+   *  back to the first image (see upsertProduct/flow.yaml). Not applicable to
+   *  variant-row images. */
+  thumbnailUrl: string | null;
   productType: ProductType;
   simple: SimpleProductData;
   variant: VariantProductData;
