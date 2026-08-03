@@ -1,18 +1,14 @@
 /**
  * Frontend API client.
  *
- * The browser never calls Windmill directly. All requests are sent to the
- * standalone Windmill proxy (see /server) at VITE_API_BASE_URL/api/windmill/[flow].
- * This app is served as a static bundle embedded in a sandboxed iframe with no
- * host-provided auth channel, so the proxy is always called cross-origin.
+ * The browser calls Windmill's flow webhooks directly (run_wait_result, so
+ * each call waits for and returns the flow's actual JSON result rather than
+ * just a job id). Each webhook URL below embeds its own auth token, so no
+ * separate proxy or server-side secret is needed.
  *
  * Authentication flow:
  *
- * Browser
- *   -> Windmill proxy (separately deployed Next.js API route)
- *   -> authenticated Windmill flow
- *   -> Medusa authentication node
- *   -> Medusa
+ * Browser -> Windmill flow webhook (token in URL) -> Medusa authentication node -> Medusa
  */
 
 import {
@@ -31,15 +27,19 @@ import {
   Warehouse,
 } from "./types";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
-
 const FLOW_URLS = {
-  lookups: `${API_BASE_URL}/api/windmill/lookups`,
-  attributes: `${API_BASE_URL}/api/windmill/attributes`,
-  listProducts: `${API_BASE_URL}/api/windmill/listProducts`,
-  upsertProduct: `${API_BASE_URL}/api/windmill/upsertProduct`,
-  deleteProduct: `${API_BASE_URL}/api/windmill/deleteProduct`,
-  uploadImage: `${API_BASE_URL}/api/windmill/uploadImage`,
+  lookups:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/lookups_goldenlight?token=mctBvAnpLVCGx9oOPyy2t3vGkLDmDfRM",
+  attributes:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/attributes_goldenlight_app?token=K7Zb6KXA47M3m24aaPoxStuIGfaQySlT",
+  listProducts:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/list_products_goldenlight_app?token=173fJQW4DSOxK3yjZeHXqUIbyBw4F9Eo",
+  upsertProduct:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/upsert_product_goldenlight?token=7Hf5EfYP8IUCjNsFsbvvGqUoUNdLIZqr",
+  deleteProduct:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/delete_product_goldenlight_app?token=WxEohZmJsWOQCj2GTSMLFR2vkScrLwJR",
+  uploadImage:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/upload_image_goldenlight_app?token=Ox0sDorLlA8pPFUrSvHqbavazegBHxSr",
 } as const;
 
 type FlowName = keyof typeof FLOW_URLS;
@@ -110,7 +110,7 @@ function extractDetailMessage(details: unknown): string {
 }
 
 /**
- * Calls a Windmill flow through the Next.js server-side proxy.
+ * Calls a Windmill flow's webhook directly.
  */
 async function callFlow<T>(
   flow: FlowName,
