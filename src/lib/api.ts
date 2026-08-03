@@ -1,16 +1,14 @@
 /**
  * Frontend API client.
  *
- * The browser never calls Windmill directly. All requests are sent to the
- * Next.js API proxy under /api/windmill/[flow].
+ * The browser calls Windmill's flow webhooks directly (run_wait_result, so
+ * each call waits for and returns the flow's actual JSON result rather than
+ * just a job id). Each webhook URL below embeds its own auth token, so no
+ * separate proxy or server-side secret is needed.
  *
  * Authentication flow:
  *
- * Browser
- *   -> Next.js API route
- *   -> authenticated Windmill flow
- *   -> Medusa authentication node
- *   -> Medusa
+ * Browser -> Windmill flow webhook (token in URL) -> Medusa authentication node -> Medusa
  */
 
 import {
@@ -30,12 +28,18 @@ import {
 } from "./types";
 
 const FLOW_URLS = {
-  lookups: "/api/windmill/lookups",
-  attributes: "/api/windmill/attributes",
-  listProducts: "/api/windmill/listProducts",
-  upsertProduct: "/api/windmill/upsertProduct",
-  deleteProduct: "/api/windmill/deleteProduct",
-  uploadImage: "/api/windmill/uploadImage",
+  lookups:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/lookups_goldenlight?token=mctBvAnpLVCGx9oOPyy2t3vGkLDmDfRM",
+  attributes:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/attributes_goldenlight_app?token=K7Zb6KXA47M3m24aaPoxStuIGfaQySlT",
+  listProducts:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/list_products_goldenlight_app?token=173fJQW4DSOxK3yjZeHXqUIbyBw4F9Eo",
+  upsertProduct:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/upsert_product_goldenlight?token=7Hf5EfYP8IUCjNsFsbvvGqUoUNdLIZqr",
+  deleteProduct:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/delete_product_goldenlight_app?token=WxEohZmJsWOQCj2GTSMLFR2vkScrLwJR",
+  uploadImage:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/upload_image_goldenlight_app?token=Ox0sDorLlA8pPFUrSvHqbavazegBHxSr",
 } as const;
 
 type FlowName = keyof typeof FLOW_URLS;
@@ -106,7 +110,7 @@ function extractDetailMessage(details: unknown): string {
 }
 
 /**
- * Calls a Windmill flow through the Next.js server-side proxy.
+ * Calls a Windmill flow's webhook directly.
  */
 async function callFlow<T>(
   flow: FlowName,

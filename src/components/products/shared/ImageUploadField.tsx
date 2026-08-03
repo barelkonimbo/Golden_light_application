@@ -68,7 +68,6 @@ export function ImageUploadField({
               key={`${url}-${index}`}
               className="bg-muted group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="size-full object-cover" />
               {onThumbnailChange && (
                 <button

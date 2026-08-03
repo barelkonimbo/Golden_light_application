@@ -1,40 +1,31 @@
 # Golden Light Application
 
-A Next.js product management UI for Golden Light, embedded as a section inside the client's RMS (no navbar/branding of its own — it inherits the host page's plain white chrome). It lets staff create, edit, and list regular and variant products (attributes, inventory, shipping, organization, images) and proxies all data operations to Windmill flows rather than talking to a database directly.
+A product management UI for Golden Light, embedded inside the client's RMS as an `application`-type custom widget: a sandboxed iframe pointing at a static build hosted on the client's S3/CloudFront (no navbar/branding of its own — it inherits the host page's plain white chrome). It lets staff create, edit, and list regular and variant products (attributes, inventory, shipping, organization, images) and proxies all data operations to Windmill flows rather than talking to a database directly.
+
+The app is a single static Vite + React SPA. It calls Windmill's flow webhooks directly from the browser — each webhook URL embeds its own auth token, so there's no separate proxy/server deployment or server-side secret to manage.
 
 ## How it works
 
-- The UI (`app/page.tsx`) switches between a product list view and a create/edit view, backed by a Zustand store (`lib/store.ts`).
-- All reads/writes go through `lib/api.ts`, which calls a single Next.js API route: `app/api/windmill/[flow]/route.ts`.
-- That route maps a `flow` name (`lookups`, `attributes`, `listProducts`, `upsertProduct`, `deleteProduct`, `uploadImage`) to a Windmill flow path and forwards the request to the Windmill instance configured via environment variables, returning the flow's JSON result.
-- Product forms are split by product type under `components/products/regular/` and `components/products/variant/`, with shared pieces (attribute/value pickers, image upload, shipping fields, etc.) in `components/products/shared/`.
+- The UI (`src/App.tsx`) switches between a product list view and a create/edit view, backed by a Zustand store (`src/lib/store.ts`).
+- All reads/writes go through `src/lib/api.ts`, which calls the Windmill webhook URLs in `FLOW_URLS` directly (`lookups`, `attributes`, `listProducts`, `upsertProduct`, `deleteProduct`, `uploadImage`), using the `run_wait_result` endpoint so each call waits for and returns the flow's actual JSON result.
+- Product forms are split by product type under `src/components/products/regular/` and `src/components/products/variant/`, with shared pieces (attribute/value pickers, image upload, shipping fields, etc.) in `src/components/products/shared/`.
 
-## Getting Started
+## Getting started
 
-1. Copy `.env.local` (or create it) with the required Windmill connection variables:
+```bash
+npm install
+npm run dev
+```
 
-   ```bash
-   WINDMILL_BASE_URL=https://your-windmill-instance
-   WINDMILL_WORKSPACE=your-workspace
-   WINDMILL_TOKEN=your-token
-   ```
-
-2. Install dependencies and run the dev server:
-
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:5173](http://localhost:5173).
 
 ## Scripts
 
-- `npm run dev` — start the development server
-- `npm run build` — build for production
-- `npm run start` — run the production build
+- `npm run dev` — Vite dev server
+- `npm run build` — type-check + build the static bundle to `dist/`
+- `npm run preview` — serve the production build locally
 - `npm run lint` — run ESLint
 
-## Notes
+## Deploying
 
-> **This is not the Next.js you know.** This project pins a Next.js version with breaking API/convention changes from what most training data assumes. Before writing Next.js-specific code, check `node_modules/next/dist/docs/` for the relevant guide and heed any deprecation notices — see [AGENTS.md](AGENTS.md).
+Build the SPA (`npm run build`) and upload the contents of `dist/` to the client's S3 bucket under the app's designated subfolder, then register it as an `application`-type custom widget (see the client's `rms-custom-widgets-plugin`) pointing at that path. The SPA uses relative asset paths (`base: "./"` in `vite.config.ts`) specifically so it works from a subfolder, not just the bucket root.
