@@ -38,6 +38,42 @@ function normaliseBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+/**
+ * The SPA and this proxy always live on different origins now (S3/CloudFront
+ * vs. wherever this is deployed), so every request needs CORS headers.
+ * Requests never carry credentials (no cookies, no Authorization header from
+ * the browser), so allowing "*" when CORS_ALLOWED_ORIGIN is unset is safe.
+ */
+function corsHeaders(origin: string | null): HeadersInit {
+  const allowedOrigins = process.env.CORS_ALLOWED_ORIGIN;
+
+  if (!allowedOrigins || allowedOrigins === "*") {
+    return {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
+  }
+
+  const allowList = allowedOrigins.split(",").map((value) => value.trim());
+  const allowOrigin =
+    origin && allowList.includes(origin) ? origin : allowList[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+  };
+}
+
+export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders(request.headers.get("origin")),
+  });
+}
+
 async function parseRequestBody(request: NextRequest): Promise<unknown> {
   const contentType = request.headers.get("content-type");
 
@@ -85,6 +121,7 @@ export async function POST(
   context: RouteContext
 ): Promise<NextResponse> {
   const { flow } = await context.params;
+  const headers = corsHeaders(request.headers.get("origin"));
 
   if (!isFlowName(flow)) {
     return NextResponse.json(
@@ -93,6 +130,7 @@ export async function POST(
       },
       {
         status: 404,
+        headers,
       }
     );
   }
@@ -120,6 +158,7 @@ export async function POST(
       },
       {
         status: 500,
+        headers,
       }
     );
   }
@@ -161,12 +200,13 @@ export async function POST(
         },
         {
           status: windmillResponse.status === 401 ? 502 : 502,
+          headers,
         }
       );
     }
 
     if (!parsedResponse.text) {
-      return NextResponse.json(null);
+      return NextResponse.json(null, { headers });
     }
 
     if (parsedResponse.json === null) {
@@ -182,11 +222,12 @@ export async function POST(
         },
         {
           status: 502,
+          headers,
         }
       );
     }
 
-    return NextResponse.json(parsedResponse.json);
+    return NextResponse.json(parsedResponse.json, { headers });
   } catch (error) {
     console.error("Unable to contact Windmill", {
       flow,
@@ -203,6 +244,7 @@ export async function POST(
       },
       {
         status: 502,
+        headers,
       }
     );
   }

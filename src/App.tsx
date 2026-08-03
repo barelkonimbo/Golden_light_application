@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect } from "react";
 import { ProductCreateView } from "@/components/products/ProductCreateView";
 import { ProductListSkeleton } from "@/components/products/ProductListSkeleton";
@@ -7,7 +5,7 @@ import { ProductListView } from "@/components/products/ProductListView";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 
-export default function Home() {
+export function App() {
   const view = useStore((state) => state.view);
   const lookupsStatus = useStore((state) => state.lookupsStatus);
   const lookupsError = useStore((state) => state.lookupsError);

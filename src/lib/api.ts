@@ -2,12 +2,14 @@
  * Frontend API client.
  *
  * The browser never calls Windmill directly. All requests are sent to the
- * Next.js API proxy under /api/windmill/[flow].
+ * standalone Windmill proxy (see /server) at VITE_API_BASE_URL/api/windmill/[flow].
+ * This app is served as a static bundle embedded in a sandboxed iframe with no
+ * host-provided auth channel, so the proxy is always called cross-origin.
  *
  * Authentication flow:
  *
  * Browser
- *   -> Next.js API route
+ *   -> Windmill proxy (separately deployed Next.js API route)
  *   -> authenticated Windmill flow
  *   -> Medusa authentication node
  *   -> Medusa
@@ -29,13 +31,15 @@ import {
   Warehouse,
 } from "./types";
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+
 const FLOW_URLS = {
-  lookups: "/api/windmill/lookups",
-  attributes: "/api/windmill/attributes",
-  listProducts: "/api/windmill/listProducts",
-  upsertProduct: "/api/windmill/upsertProduct",
-  deleteProduct: "/api/windmill/deleteProduct",
-  uploadImage: "/api/windmill/uploadImage",
+  lookups: `${API_BASE_URL}/api/windmill/lookups`,
+  attributes: `${API_BASE_URL}/api/windmill/attributes`,
+  listProducts: `${API_BASE_URL}/api/windmill/listProducts`,
+  upsertProduct: `${API_BASE_URL}/api/windmill/upsertProduct`,
+  deleteProduct: `${API_BASE_URL}/api/windmill/deleteProduct`,
+  uploadImage: `${API_BASE_URL}/api/windmill/uploadImage`,
 } as const;
 
 type FlowName = keyof typeof FLOW_URLS;
