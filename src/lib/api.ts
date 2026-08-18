@@ -12,8 +12,10 @@
  */
 
 import {
+  AdditionalMediaItem,
   Attribute,
   AttributeValue,
+  MediaStatus,
   Product,
   PaginatedProductsResponse,
   ProductCategory,
@@ -40,6 +42,8 @@ const FLOW_URLS = {
     "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/delete_product_goldenlight_app?token=WxEohZmJsWOQCj2GTSMLFR2vkScrLwJR",
   uploadImage:
     "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/upload_image_goldenlight_app?token=Ox0sDorLlA8pPFUrSvHqbavazegBHxSr",
+  additionalMedia:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/additional_media_goldenlight?token=ylbiKNLeUOFGJoT55pm5q3kNg2Qql8L5",
 } as const;
 
 type FlowName = keyof typeof FLOW_URLS;
@@ -364,3 +368,63 @@ export async function uploadProductImage(file: File): Promise<string> {
 
   return result.url;
 }
+
+// -----------------------------------------------------------------------------
+// Additional media (product-scope PDFs/videos/extra images - see
+// golden_light_application_flows/additionalMedia/flow.yaml and
+// data/rms-media-plugin-main)
+// -----------------------------------------------------------------------------
+
+/** Mirrors data/rms-media-plugin-main's ALLOWED_MIME_TYPES - the server is the
+ *  real authority, this is just a friendly client-side pre-check so a
+ *  rejected file fails fast with a clear message instead of a round trip. */
+export const ADDITIONAL_MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/gif,image/webp,image/heic,image/svg+xml," +
+  "application/pdf,application/msword," +
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
+  "application/vnd.ms-excel," +
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet," +
+  "text/csv,text/plain," +
+  "video/mp4,video/quicktime,video/x-msvideo,video/webm,video/x-matroska,video/x-ms-wmv,video/x-m4v," +
+  "audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/aac";
+
+export const listAdditionalMedia = (productId: string): Promise<AdditionalMediaItem[]> =>
+  callFlow<AdditionalMediaItem[]>("additionalMedia", {
+    op: "list",
+    productId,
+  });
+
+export async function uploadAdditionalMedia(
+  productId: string,
+  file: File
+): Promise<AdditionalMediaItem> {
+  if (!file) {
+    throw new Error("לא נבחר קובץ.");
+  }
+
+  const dataBase64 = await fileToBase64(file);
+
+  return callFlow<AdditionalMediaItem>("additionalMedia", {
+    op: "upload",
+    productId,
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    dataBase64,
+  });
+}
+
+export const updateAdditionalMediaStatus = (
+  id: string,
+  status: MediaStatus
+): Promise<AdditionalMediaItem> =>
+  callFlow<AdditionalMediaItem>("additionalMedia", {
+    op: "updateStatus",
+    id,
+    status,
+  });
+
+export const deleteAdditionalMedia = (id: string): Promise<{ success: true }> =>
+  callFlow<{ success: true }>("additionalMedia", {
+    op: "delete",
+    id,
+  });

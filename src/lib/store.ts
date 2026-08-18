@@ -4,9 +4,11 @@ import {
   addAttributeValues as apiAddAttributeValues,
   createAttribute as apiCreateAttribute,
   createProduct as apiCreateProduct,
+  deleteAdditionalMedia as apiDeleteAdditionalMedia,
   deleteAttribute as apiDeleteAttribute,
   deleteAttributeValue as apiDeleteAttributeValue,
   deleteProduct as apiDeleteProduct,
+  listAdditionalMedia,
   listAttributes,
   listCategories,
   listCollections,
@@ -18,14 +20,18 @@ import {
   listShippingProfiles,
   listTags,
   listWarehouses,
+  updateAdditionalMediaStatus as apiUpdateAdditionalMediaStatus,
   updateProduct as apiUpdateProduct,
+  uploadAdditionalMedia as apiUploadAdditionalMedia,
 } from "./api";
 import { createEmptyVariantRow, createInitialDraft, validateDraft } from "./draft";
 import { toFriendlyMessage } from "./errors";
 import {
+  AdditionalMediaItem,
   Attribute,
   ChannelPrice,
   Dimensions,
+  MediaStatus,
   Product,
   ProductCategory,
   ProductCollection,
@@ -82,6 +88,15 @@ interface StoreState {
   deletingProductId: string | null;
   deleteError: string | null;
 
+  /** Product-scope "additional media" (PDFs/videos/extra images) - not part
+   *  of ProductDraft/saveDraft, see AdditionalMediaItem. Only meaningful
+   *  while editing a saved product (a new, unsaved product has no id for
+   *  these to attach to). */
+  additionalMedia: AdditionalMediaItem[];
+  additionalMediaStatus: FetchStatus;
+  additionalMediaError: string | null;
+  uploadingAdditionalMedia: boolean;
+
   hydrate: () => Promise<void>;
   fetchProducts: (
     page?: number,
@@ -98,6 +113,11 @@ interface StoreState {
   startCreateProduct: () => void;
   startEditProduct: (productId: string) => void;
   deleteProduct: (productId: string) => Promise<void>;
+
+  loadAdditionalMedia: (productId: string) => Promise<void>;
+  uploadAdditionalMediaFile: (file: File) => Promise<void>;
+  setAdditionalMediaStatus: (id: string, status: MediaStatus) => Promise<void>;
+  removeAdditionalMedia: (id: string) => Promise<void>;
 
   addAttribute: (name: string, initialValues: string[]) => Promise<{ attributeId: string; valueIds: string[] }>;
   addAttributeValues: (attributeId: string, values: string[]) => Promise<string[]>;
@@ -202,6 +222,11 @@ function errorMessage(error: unknown): string {
 // newer one and clobbering its (more current) results.
 let productsFetchToken = 0;
 
+// Same guard as productsFetchToken, for loadAdditionalMedia() - switching
+// from editing product A to product B shouldn't let A's slower-to-resolve
+// fetch overwrite B's list.
+let additionalMediaFetchToken = 0;
+
 export const useStore = create<StoreState>()(
   immer((set, get) => ({
     view: "list",
@@ -236,6 +261,11 @@ export const useStore = create<StoreState>()(
     saveAttempted: false,
     deletingProductId: null,
     deleteError: null,
+
+    additionalMedia: [],
+    additionalMediaStatus: "idle",
+    additionalMediaError: null,
+    uploadingAdditionalMedia: false,
 
     hydrate: async () => {
       const { productsPage, productsPageSize } = get();
@@ -370,6 +400,9 @@ export const useStore = create<StoreState>()(
         state.saveError = null;
         state.saveAttempted = false;
         state.view = "create";
+        state.additionalMedia = [];
+        state.additionalMediaStatus = "idle";
+        state.additionalMediaError = null;
       }),
 
     startEditProduct: (productId) =>
@@ -409,6 +442,9 @@ export const useStore = create<StoreState>()(
         state.saveError = null;
         state.saveAttempted = false;
         state.view = "create";
+        state.additionalMedia = [];
+        state.additionalMediaStatus = "idle";
+        state.additionalMediaError = null;
       }),
 
     deleteProduct: async (productId) => {
@@ -430,6 +466,65 @@ export const useStore = create<StoreState>()(
         });
         throw error;
       }
+    },
+
+    loadAdditionalMedia: async (productId) => {
+      const token = ++additionalMediaFetchToken;
+      set((state) => {
+        state.additionalMediaStatus = "loading";
+        state.additionalMediaError = null;
+      });
+      try {
+        const items = await listAdditionalMedia(productId);
+        if (token !== additionalMediaFetchToken) return;
+        set((state) => {
+          state.additionalMedia = items;
+          state.additionalMediaStatus = "ready";
+        });
+      } catch (error) {
+        if (token !== additionalMediaFetchToken) return;
+        set((state) => {
+          state.additionalMediaStatus = "error";
+          state.additionalMediaError = errorMessage(error);
+        });
+      }
+    },
+
+    uploadAdditionalMediaFile: async (file) => {
+      const productId = get().editingProductId;
+      if (!productId) throw new Error("יש לשמור את המוצר לפני הוספת מדיה נוספת.");
+
+      set((state) => {
+        state.uploadingAdditionalMedia = true;
+        state.additionalMediaError = null;
+      });
+      try {
+        const item = await apiUploadAdditionalMedia(productId, file);
+        set((state) => {
+          state.additionalMedia.push(item);
+          state.uploadingAdditionalMedia = false;
+        });
+      } catch (error) {
+        set((state) => {
+          state.uploadingAdditionalMedia = false;
+        });
+        throw error;
+      }
+    },
+
+    setAdditionalMediaStatus: async (id, status) => {
+      const updated = await apiUpdateAdditionalMediaStatus(id, status);
+      set((state) => {
+        const item = state.additionalMedia.find((entry) => entry.id === id);
+        if (item) item.status = updated.status;
+      });
+    },
+
+    removeAdditionalMedia: async (id) => {
+      await apiDeleteAdditionalMedia(id);
+      set((state) => {
+        state.additionalMedia = state.additionalMedia.filter((item) => item.id !== id);
+      });
     },
 
     addAttribute: async (name, initialValues) => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ProductDataSection } from "@/components/products/ProductDataSection";
+import { AdditionalMediaSection } from "@/components/products/shared/AdditionalMediaSection";
 import { ImageUploadField } from "@/components/products/shared/ImageUploadField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -129,6 +130,15 @@ export function ProductCreateView() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>מדיה נוספת</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdditionalMediaSection />
         </CardContent>
       </Card>
 
