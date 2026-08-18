@@ -45,6 +45,36 @@ export const PUBLICATION_STATUS_LABELS: Record<PublicationStatus, string> = {
   rejected: "נדחה",
 };
 
+/** rms-media-plugin's MediaStatus enum (data/rms-media-plugin-main) - a
+ *  separate status lifecycle from PublicationStatus, scoped to one
+ *  AdditionalMediaItem rather than the product. */
+export type MediaStatus =
+  | "draft"
+  | "submitted"
+  | "review"
+  | "revision"
+  | "edited"
+  | "approved"
+  | "scheduled"
+  | "published"
+  | "archived"
+  | "unpublished"
+  | "rejected";
+
+export const MEDIA_STATUS_LABELS: Record<MediaStatus, string> = {
+  draft: "טיוטה",
+  submitted: "נשלח",
+  review: "בבדיקה",
+  revision: "נדרש תיקון",
+  edited: "נערך",
+  approved: "מאושר",
+  scheduled: "מתוזמן",
+  published: "פורסם",
+  archived: "בארכיון",
+  unpublished: "הוסר מפרסום",
+  rejected: "נדחה",
+};
+
 export interface Dimensions {
   weight: string;
   length: string;
@@ -152,9 +182,59 @@ export interface Product extends ProductDraft {
   createdAt: string;
 }
 
+/** A row in a product's "additional media" gallery - PDFs, videos, extra
+ *  images, etc. Product-scoped only (see rms-media-plugin), backed by its
+ *  own RMS module entirely separate from Medusa's product `images[]`, so
+ *  this isn't part of ProductDraft/saveDraft - it's fetched/mutated
+ *  independently via the additionalMedia flow once a product has an id. */
+export interface AdditionalMediaItem {
+  id: string;
+  fileName: string;
+  alt: string | null;
+  mediaType: string;
+  extension: string;
+  url: string;
+  /** Widths (px) the media Lambda actually generated for this record - only
+   *  set for image-type media. Used to derive a small thumbnail variant URL
+   *  instead of loading the full-resolution original (see getThumbnailUrl). */
+  mediaWidthArray: number[] | null;
+  status: MediaStatus;
+  position: number;
+  createdAt: string;
+}
+
 export interface PaginatedProductsResponse {
   items: Product[];
   total: number;
+}
+
+/** A client-managed "related group" (e.g. "מוצרים מקושרים") - see
+ *  rms-related-products plugin (data/rms-related-products-main). Groups
+ *  themselves are created manually in RMS, not by this app; every group
+ *  shows up on every product with `productsCount` defaulting to 0 until
+ *  products are actually linked within it via the "manage" modal. */
+export interface RelatedGroup {
+  id: string;
+  title: string;
+  description: string | null;
+  productsCount: number;
+}
+
+/** Minimal display info for a product referenced as a related-group member -
+ *  not the full Product record, just enough to render a row in the manage
+ *  modal (see relatedGroups/flow.yaml's getGroupItems). */
+export interface RelatedProductSummary {
+  id: string;
+  title: string;
+  thumbnailUrl: string | null;
+}
+
+/** One (other product, sales channel) link within a related group. The
+ *  "Global (All Channels)" toggle seen in RMS is a pure UI convenience over
+ *  a full set of these, never its own row - see relatedGroups/flow.yaml. */
+export interface RelatedGroupItem {
+  relatedProductId: string;
+  salesChannelId: string;
 }
 
 export function productSku(product: ProductDraft): string {

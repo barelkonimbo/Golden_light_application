@@ -4,28 +4,37 @@ import {
   addAttributeValues as apiAddAttributeValues,
   createAttribute as apiCreateAttribute,
   createProduct as apiCreateProduct,
+  deleteAdditionalMedia as apiDeleteAdditionalMedia,
   deleteAttribute as apiDeleteAttribute,
   deleteAttributeValue as apiDeleteAttributeValue,
   deleteProduct as apiDeleteProduct,
+  getRelatedGroupItems as apiGetRelatedGroupItems,
+  listAdditionalMedia,
   listAttributes,
   listCategories,
   listCollections,
   listProducts,
   ListProductsFilters,
   listProductTypes,
+  listRelatedGroups,
   listSalesChannels,
   listShipmentTypes,
   listShippingProfiles,
   listTags,
   listWarehouses,
+  syncRelatedGroupItems as apiSyncRelatedGroupItems,
+  updateAdditionalMediaStatus as apiUpdateAdditionalMediaStatus,
   updateProduct as apiUpdateProduct,
+  uploadAdditionalMedia as apiUploadAdditionalMedia,
 } from "./api";
 import { createEmptyVariantRow, createInitialDraft, validateDraft } from "./draft";
 import { toFriendlyMessage } from "./errors";
 import {
+  AdditionalMediaItem,
   Attribute,
   ChannelPrice,
   Dimensions,
+  MediaStatus,
   Product,
   ProductCategory,
   ProductCollection,
@@ -34,6 +43,9 @@ import {
   ProductType,
   ProductTypeOption,
   PublicationStatus,
+  RelatedGroup,
+  RelatedGroupItem,
+  RelatedProductSummary,
   SalesChannel,
   ShipmentType,
   ShippingProfile,
@@ -82,6 +94,22 @@ interface StoreState {
   deletingProductId: string | null;
   deleteError: string | null;
 
+  /** Product-scope "additional media" (PDFs/videos/extra images) - not part
+   *  of ProductDraft/saveDraft, see AdditionalMediaItem. Only meaningful
+   *  while editing a saved product (a new, unsaved product has no id for
+   *  these to attach to). */
+  additionalMedia: AdditionalMediaItem[];
+  additionalMediaStatus: FetchStatus;
+  additionalMediaError: string | null;
+  uploadingAdditionalMedia: boolean;
+
+  /** Product-scope "related groups" (client-managed cross-links into other
+   *  products) - see RelatedGroup. Same "only meaningful once the product
+   *  has an id" constraint as additionalMedia. */
+  relatedGroups: RelatedGroup[];
+  relatedGroupsStatus: FetchStatus;
+  relatedGroupsError: string | null;
+
   hydrate: () => Promise<void>;
   fetchProducts: (
     page?: number,
@@ -98,6 +126,22 @@ interface StoreState {
   startCreateProduct: () => void;
   startEditProduct: (productId: string) => void;
   deleteProduct: (productId: string) => Promise<void>;
+
+  loadAdditionalMedia: (productId: string) => Promise<void>;
+  uploadAdditionalMediaFile: (file: File) => Promise<void>;
+  setAdditionalMediaStatus: (id: string, status: MediaStatus) => Promise<void>;
+  removeAdditionalMedia: (id: string) => Promise<void>;
+
+  loadRelatedGroups: (productId: string) => Promise<void>;
+  getRelatedGroupItems: (
+    productId: string,
+    groupId: string
+  ) => Promise<{ items: RelatedGroupItem[]; products: RelatedProductSummary[] }>;
+  syncRelatedGroupItems: (
+    productId: string,
+    groupId: string,
+    items: RelatedGroupItem[]
+  ) => Promise<void>;
 
   addAttribute: (name: string, initialValues: string[]) => Promise<{ attributeId: string; valueIds: string[] }>;
   addAttributeValues: (attributeId: string, values: string[]) => Promise<string[]>;
@@ -202,6 +246,14 @@ function errorMessage(error: unknown): string {
 // newer one and clobbering its (more current) results.
 let productsFetchToken = 0;
 
+// Same guard as productsFetchToken, for loadAdditionalMedia() - switching
+// from editing product A to product B shouldn't let A's slower-to-resolve
+// fetch overwrite B's list.
+let additionalMediaFetchToken = 0;
+
+// Same guard, for loadRelatedGroups().
+let relatedGroupsFetchToken = 0;
+
 export const useStore = create<StoreState>()(
   immer((set, get) => ({
     view: "list",
@@ -236,6 +288,15 @@ export const useStore = create<StoreState>()(
     saveAttempted: false,
     deletingProductId: null,
     deleteError: null,
+
+    additionalMedia: [],
+    additionalMediaStatus: "idle",
+    additionalMediaError: null,
+    uploadingAdditionalMedia: false,
+
+    relatedGroups: [],
+    relatedGroupsStatus: "idle",
+    relatedGroupsError: null,
 
     hydrate: async () => {
       const { productsPage, productsPageSize } = get();
@@ -370,6 +431,12 @@ export const useStore = create<StoreState>()(
         state.saveError = null;
         state.saveAttempted = false;
         state.view = "create";
+        state.additionalMedia = [];
+        state.additionalMediaStatus = "idle";
+        state.additionalMediaError = null;
+        state.relatedGroups = [];
+        state.relatedGroupsStatus = "idle";
+        state.relatedGroupsError = null;
       }),
 
     startEditProduct: (productId) =>
@@ -409,6 +476,12 @@ export const useStore = create<StoreState>()(
         state.saveError = null;
         state.saveAttempted = false;
         state.view = "create";
+        state.additionalMedia = [];
+        state.additionalMediaStatus = "idle";
+        state.additionalMediaError = null;
+        state.relatedGroups = [];
+        state.relatedGroupsStatus = "idle";
+        state.relatedGroupsError = null;
       }),
 
     deleteProduct: async (productId) => {
@@ -430,6 +503,98 @@ export const useStore = create<StoreState>()(
         });
         throw error;
       }
+    },
+
+    loadAdditionalMedia: async (productId) => {
+      const token = ++additionalMediaFetchToken;
+      set((state) => {
+        state.additionalMediaStatus = "loading";
+        state.additionalMediaError = null;
+      });
+      try {
+        const items = await listAdditionalMedia(productId);
+        if (token !== additionalMediaFetchToken) return;
+        set((state) => {
+          state.additionalMedia = items;
+          state.additionalMediaStatus = "ready";
+        });
+      } catch (error) {
+        if (token !== additionalMediaFetchToken) return;
+        set((state) => {
+          state.additionalMediaStatus = "error";
+          state.additionalMediaError = errorMessage(error);
+        });
+      }
+    },
+
+    uploadAdditionalMediaFile: async (file) => {
+      const productId = get().editingProductId;
+      if (!productId) throw new Error("יש לשמור את המוצר לפני הוספת מדיה נוספת.");
+
+      set((state) => {
+        state.uploadingAdditionalMedia = true;
+        state.additionalMediaError = null;
+      });
+      try {
+        const item = await apiUploadAdditionalMedia(productId, file);
+        set((state) => {
+          state.additionalMedia.push(item);
+          state.uploadingAdditionalMedia = false;
+        });
+      } catch (error) {
+        set((state) => {
+          state.uploadingAdditionalMedia = false;
+        });
+        throw error;
+      }
+    },
+
+    setAdditionalMediaStatus: async (id, status) => {
+      const updated = await apiUpdateAdditionalMediaStatus(id, status);
+      set((state) => {
+        const item = state.additionalMedia.find((entry) => entry.id === id);
+        if (item) item.status = updated.status;
+      });
+    },
+
+    removeAdditionalMedia: async (id) => {
+      await apiDeleteAdditionalMedia(id);
+      set((state) => {
+        state.additionalMedia = state.additionalMedia.filter((item) => item.id !== id);
+      });
+    },
+
+    loadRelatedGroups: async (productId) => {
+      const token = ++relatedGroupsFetchToken;
+      set((state) => {
+        state.relatedGroupsStatus = "loading";
+        state.relatedGroupsError = null;
+      });
+      try {
+        const groups = await listRelatedGroups(productId);
+        if (token !== relatedGroupsFetchToken) return;
+        set((state) => {
+          state.relatedGroups = groups;
+          state.relatedGroupsStatus = "ready";
+        });
+      } catch (error) {
+        if (token !== relatedGroupsFetchToken) return;
+        set((state) => {
+          state.relatedGroupsStatus = "error";
+          state.relatedGroupsError = errorMessage(error);
+        });
+      }
+    },
+
+    getRelatedGroupItems: (productId, groupId) => apiGetRelatedGroupItems(productId, groupId),
+
+    syncRelatedGroupItems: async (productId, groupId, items) => {
+      await apiSyncRelatedGroupItems(productId, groupId, items);
+      const productsCount = new Set(items.map((item) => item.relatedProductId)).size;
+      set((state) => {
+        const group = state.relatedGroups.find((entry) => entry.id === groupId);
+        if (group) group.productsCount = productsCount;
+      });
     },
 
     addAttribute: async (name, initialValues) => {
