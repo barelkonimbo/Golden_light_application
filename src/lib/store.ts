@@ -560,6 +560,11 @@ export const useStore = create<StoreState>()(
     setSimpleAllowBackorder: (allowBackorder) =>
       set((state) => {
         state.draft.simple.allowBackorder = allowBackorder;
+        // Medusa never creates an inventory item for a variant with
+        // manage_inventory: false - it's just always "in stock" and
+        // allow_backorder has no effect. Forcing this on keeps the two in
+        // sync so backorder actually does something (see VariantsTab.tsx).
+        if (allowBackorder) state.draft.simple.managedInventory = true;
       }),
 
     addSimpleAttribute: (attributeId) =>
@@ -685,6 +690,14 @@ export const useStore = create<StoreState>()(
             changes.price
           );
         }
+        if (changes.imageUrls && row.thumbnailUrl && !changes.imageUrls.includes(row.thumbnailUrl)) {
+          row.thumbnailUrl = null;
+        }
+        // Medusa never creates an inventory item for a variant with
+        // manage_inventory: false - it's just always "in stock" and
+        // allow_backorder has no effect. Forcing this on keeps the two in
+        // sync so backorder actually does something.
+        if (changes.allowBackorder) row.managedInventory = true;
       }),
 
     setVariantRowOption: (rowId, attributeId, valueId) =>

@@ -134,7 +134,14 @@ export function VariantsTab() {
                     <ImageUploadField
                       values={row.imageUrls}
                       onChange={(imageUrls) => updateVariantRow(row.id, { imageUrls })}
+                      thumbnailUrl={row.thumbnailUrl}
+                      onThumbnailChange={(thumbnailUrl) => updateVariantRow(row.id, { thumbnailUrl })}
                     />
+                    {row.imageUrls.length > 1 && (
+                      <p className="text-muted-foreground text-sm">
+                        יש ללחוץ על סמל הכוכב בתמונה כדי לקבוע אותה כתמונה הראשית של הוריאציה.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -216,6 +223,8 @@ export function VariantsTab() {
                       <Checkbox
                         id={`managed-inventory-${row.id}`}
                         checked={row.managedInventory}
+                        disabled={row.allowBackorder}
+                        title={row.allowBackorder ? 'נדרש ניהול מלאי כדי לאפשר הזמנה מראש' : undefined}
                         onCheckedChange={(checked) =>
                           updateVariantRow(row.id, { managedInventory: checked === true })
                         }

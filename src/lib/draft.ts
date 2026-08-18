@@ -64,6 +64,7 @@ export function createEmptyVariantRow(): VariantRow {
     managedInventory: false,
     allowBackorder: false,
     imageUrls: [],
+    thumbnailUrl: null,
     channelPrices: [],
     expanded: true,
   };

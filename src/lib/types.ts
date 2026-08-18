@@ -93,6 +93,10 @@ export interface VariantRow extends StockHandling {
   packageAmount: string;
   channelPrices: ChannelPrice[];
   imageUrls: string[];
+  /** Which of this variant's own `imageUrls` is its main/thumbnail image.
+   *  `null` falls back to the first image (mirrors ProductDraft.thumbnailUrl,
+   *  see upsertProduct/flow.yaml). */
+  thumbnailUrl: string | null;
   expanded: boolean;
 }
 
