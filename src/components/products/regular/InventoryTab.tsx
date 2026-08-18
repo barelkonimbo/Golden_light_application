@@ -63,6 +63,8 @@ export function RegularInventoryTab() {
         <Checkbox
           id="simple-managed-inventory"
           checked={managedInventory}
+          disabled={allowBackorder}
+          title={allowBackorder ? 'נדרש ניהול מלאי כדי לאפשר הזמנה מראש' : undefined}
           onCheckedChange={(checked) => setSimpleManagedInventory(checked === true)}
         />
         <Label htmlFor="simple-managed-inventory">ניהול מלאי</Label>

@@ -17,7 +17,7 @@ export function ImageUploadField({
   onChange: (urls: string[]) => void;
   /** When provided (together with onThumbnailChange), each image tile gets a
    *  "set as main image" toggle. Omit for image fields where picking a main
-   *  image doesn't apply (e.g. a variant row's own images). */
+   *  image doesn't apply. */
   thumbnailUrl?: string | null;
   onThumbnailChange?: (url: string | null) => void;
 }) {
