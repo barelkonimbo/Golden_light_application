@@ -208,6 +208,35 @@ export interface PaginatedProductsResponse {
   total: number;
 }
 
+/** A client-managed "related group" (e.g. "מוצרים מקושרים") - see
+ *  rms-related-products plugin (data/rms-related-products-main). Groups
+ *  themselves are created manually in RMS, not by this app; every group
+ *  shows up on every product with `productsCount` defaulting to 0 until
+ *  products are actually linked within it via the "manage" modal. */
+export interface RelatedGroup {
+  id: string;
+  title: string;
+  description: string | null;
+  productsCount: number;
+}
+
+/** Minimal display info for a product referenced as a related-group member -
+ *  not the full Product record, just enough to render a row in the manage
+ *  modal (see relatedGroups/flow.yaml's getGroupItems). */
+export interface RelatedProductSummary {
+  id: string;
+  title: string;
+  thumbnailUrl: string | null;
+}
+
+/** One (other product, sales channel) link within a related group. The
+ *  "Global (All Channels)" toggle seen in RMS is a pure UI convenience over
+ *  a full set of these, never its own row - see relatedGroups/flow.yaml. */
+export interface RelatedGroupItem {
+  relatedProductId: string;
+  salesChannelId: string;
+}
+
 export function productSku(product: ProductDraft): string {
   return product.productType === "simple" ? product.simple.sku : product.variant.handle;
 }

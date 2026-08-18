@@ -23,6 +23,9 @@ import {
   ProductDraft,
   ProductTag,
   ProductTypeOption,
+  RelatedGroup,
+  RelatedGroupItem,
+  RelatedProductSummary,
   SalesChannel,
   ShipmentType,
   ShippingProfile,
@@ -44,6 +47,8 @@ const FLOW_URLS = {
     "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/upload_image_goldenlight_app?token=Ox0sDorLlA8pPFUrSvHqbavazegBHxSr",
   additionalMedia:
     "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/additional_media_goldenlight?token=ylbiKNLeUOFGJoT55pm5q3kNg2Qql8L5",
+  relatedGroups:
+    "https://flow.youleap.com/api/w/admins/jobs/run_wait_result/f/u/barelh/related_groups_goldenlight?token=DF6ywdPXe1FVfuduyqQY2ThIkBYh0b4p",
 } as const;
 
 type FlowName = keyof typeof FLOW_URLS;
@@ -427,4 +432,38 @@ export const deleteAdditionalMedia = (id: string): Promise<{ success: true }> =>
   callFlow<{ success: true }>("additionalMedia", {
     op: "delete",
     id,
+  });
+
+// -----------------------------------------------------------------------------
+// Related groups (product-scope cross-links into client-managed groups - see
+// golden_light_application_flows/relatedGroups/flow.yaml and
+// data/rms-related-products-main)
+// -----------------------------------------------------------------------------
+
+export const listRelatedGroups = (productId: string): Promise<RelatedGroup[]> =>
+  callFlow<RelatedGroup[]>("relatedGroups", {
+    op: "listGroups",
+    productId,
+  });
+
+export const getRelatedGroupItems = (
+  productId: string,
+  groupId: string
+): Promise<{ items: RelatedGroupItem[]; products: RelatedProductSummary[] }> =>
+  callFlow<{ items: RelatedGroupItem[]; products: RelatedProductSummary[] }>("relatedGroups", {
+    op: "getGroupItems",
+    productId,
+    groupId,
+  });
+
+export const syncRelatedGroupItems = (
+  productId: string,
+  groupId: string,
+  items: RelatedGroupItem[]
+): Promise<{ success: true }> =>
+  callFlow<{ success: true }>("relatedGroups", {
+    op: "sync",
+    productId,
+    groupId,
+    items,
   });
